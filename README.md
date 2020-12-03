@@ -228,15 +228,25 @@ bash $
 - Number of output neurons 1 (output neuron is also effector)
 thus such default topology is expressed as an option `-t 1,1` (there are only 2 neurons in such topology)
 
-\- option `-e` allows setting the target error for convergence. Some tasks might not even have global minimum solutions (typically it'll be function approximations/regressions)
-thus adjusting target error (to the higher end) might be required.
+```
+.configure_rpn(), target error: 0.001
+```
+\- option `-e` allows setting the target error for convergence. Some tasks might not even have global minimum solutions (typically it'll be
+function approximations/regressions) thus adjusting target error (to the higher end) might be required.
 > next version of the framework will have an option of finding the deepest local minimum in absence of a global one (i.e. the manual weight adjustments
 won't be required)
 
+```
+.configure_rpn(), normalize inputs: true
+```
 \- Inputs normalization is on by default and could be turned off with option `-n 0,0`, or `-n 1,1` (any combination where `min` and `max` parameters
 are the same). Given that often the logistic function are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's max and min
-values are mapped around logistic's zero point. Default input normalization values are `-n -1,+1`.   Also, Rpnn limits _delta weight_ to the minimal
-and maximal values `1.e-6` and `1.e+4` respectively:
+values are mapped around logistic's zero point. Default input normalization values are `-n -1,+1`.
+
+```
+.configure_rpn(), LM trail size: 4
+```
+Also, Rpnn limits _delta weight_ to the minimal and maximal values `1.e-6` and `1.e+4` respectively:
 ```
 #define RPNN_MIN_STEP   1.e-6
 #define RPNN_MAX_STEP   1.e+4
@@ -248,10 +258,20 @@ Thus, very small or very large input values simply won't converge, the input nor
 out of the local minimum trap. That mechanism is facilitated with the recording the error trail of each epoch's global error. The size of such trail
 typically is proportional to the total number of weights in the given topology with the default factor of `-m 2`. Though it does not always work and
 sometimes a longer trail needs to be tracked.
-
-The mechanism poses a dilemma though: LM trap detection drastically improves chances for a successful converge, but the trail size slows down the
+> The mechanism poses a dilemma though: LM trap detection drastically improves chances for a successful converge, but the trail size slows down the
 convergence itself (the bigger trail size, the slower training runs) - finding a right balance is the subject of some research for a given task.
 
+```
+.configure_rpn(), cost function: cf_Sse
+```
+Default cost function to evaluate convergence (across all the output neurons) is _Squared Sum Erros_ (`Sse`).
+Another cost function is _Cross Entropy_ (`Xntropy`)
+
+```
+.configure_rpn(), randomizer seed: timer (1607022081931188)
+```
+A seed for randomization (weights initializing) is taken from the timer, though for some debugging (or research) purposes it might require running
+the convergence with the same seed, which could be done using option `-s 1607022081931188`
 
 
 
