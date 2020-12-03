@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
  opt[CHR(OPT_DMP)].desc("file to dump Rpnn brain to").bind("rpn.bin").name("file_name");
  opt[CHR(OPT_RDF)].desc("file to reinstate Rpnn brain from").bind("rpn.bin").name("file_name");
  opt[CHR(OPT_SED)].desc("seed for randomizer (0: auto)").bind("0").name("seed");
- opt[CHR(OPT_RUP)].desc("round up outputs to interger values");
+ opt[CHR(OPT_RUP)].desc("round up outputs to integer values");
  opt[0].desc("epochs to run convergence").name("epochs").bind("100000");
 
  string epilog{R"(
@@ -183,11 +183,9 @@ void configure_rpn(Rpnn &rpn, Getopt &opt) {
  DEBUGGABLE()
  // topology:
  rpn.full_mesh(str_to_num<int>(opt[CHR(OPT_TPG)].str()));
- DBG(0) {
-  DOUT() << "receptors: " << distance(++rpn.neurons().begin(), rpn.effectors()) << endl;
-  DOUT() << "effectors: " << distance(rpn.effectors(), rpn.neurons().end()) << endl;
-  DOUT() << "output neurons: " << distance(rpn.output_neurons(), rpn.neurons().end()) << endl;
- }
+ DBG(0) DOUT() << "receptors: " << distance(++rpn.neurons().begin(), rpn.effectors()) << endl;
+ DBG(0) DOUT() << "effectors: " << distance(rpn.effectors(), rpn.neurons().end()) << endl;
+ DBG(0) DOUT() << "output neurons: " << distance(rpn.output_neurons(), rpn.neurons().end()) << endl;
 
  // target error
  rpn.target_error(stod(opt[CHR(OPT_ERR)].str()));
@@ -252,12 +250,10 @@ void configure_rpn(Rpnn &rpn, Getopt &opt) {
  // seed
  size_t seed = stoul(opt[CHR(OPT_SED)].str());
  if(seed > 0) rpn.bouncer().seed(seed);
- DBG(0) {
-  DOUT() << "randomizer seed: "
-         << (seed == 0?
-             "timer (" + to_string(rpn.bouncer().seed()) + ")": to_string(seed)) << endl;
-  DOUT() << "epochs to run: " << stoul(opt[0].str()) << endl;
- }
+ DBG(0) DOUT() << "randomizer seed: "
+               << (seed == 0?
+                   "timer (" + to_string(rpn.bouncer().seed()) + ")": to_string(seed)) << endl;
+ DBG(0) DOUT() << "epochs to run: " << stoul(opt[0].str()) << endl;
  DBG(1) DOUT() << rpn << endl;
 }
 
@@ -271,6 +267,8 @@ void run_convergence(Rpnn &rpn, Getopt &opt) {
  vector<vector<double>> inputs(ip);
  vector<vector<double>> targets(tp);
 
+ DEBUGGABLE()
+ DBG(0) DOUT() << "start reading training patterns..." << endl;
  string str;
  while(getline(cin, str)) {
   str = regex_replace(str, std::regex{R"([\s=,]+)"}, " ");
@@ -288,6 +286,7 @@ void run_convergence(Rpnn &rpn, Getopt &opt) {
  }
 
  rpn.load_patterns(inputs, targets);
+ DBG(0) DOUT() << "training patterns read and loaded, starting convergence..." << endl;
  rpn.converge(stoul(opt[0].str()));
 
  if(rpn.global_error() > rpn.target_error()) {
@@ -301,7 +300,6 @@ void run_convergence(Rpnn &rpn, Getopt &opt) {
  ofstream file(opt[CHR(OPT_DMP)].str(), ios::binary);
  file << noskipws << Blob(rpn);
 
- DEBUGGABLE()
  DBG(0) DOUT() << "dumped rpn brains into file: " << opt[CHR(OPT_DMP)].str() << endl;
 }
 

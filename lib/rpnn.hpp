@@ -28,11 +28,12 @@
 #define SIZE_T(N) static_cast<size_t>(N)
 
 #define RPNN_MIN_STEP   1.e-6
-#define RPNN_MAX_STEP   1.e+4
+#define RPNN_MAX_STEP   1.e+3
 #define RPNN_DW_FACTOR  1.1618034
 #define RPNN_BASE -1.0
 #define RPNN_RANGE 2.0
-#define RPNN_LMD_PCNT 0.2
+#define RPNN_LMD_PCNT1 0.15                                     // detecting similar pattern
+#define RPNN_LMD_PCNT2 0.0001                                   // detect similar values
 
 
 
@@ -1058,19 +1059,24 @@ bool Rpnn::is_lm_detected_(double err) {
  auto & et = error_trail_;
 
  auto is_looping = [&](void) -> bool {                          // detect looping lambda
+  bool sim_value{true};
   for(auto tt = tortoise, th = tt + 1, ht = hare, hh = ht + 1;  // tortoise/hare head/tail
       hh < et.capacity();
-      ++tt, ++th, ++ht, ++hh)
+      ++tt, ++th, ++ht, ++hh) {
    // if |dt-dh / dh| > LMD% then no looping
-   if(fabs(((et[th] - et[tt]) - (et[hh] - et[ht])) / (et[hh] - et[ht])) >= RPNN_LMD_PCNT)
-    return false;
+   if(et[tt] != 0. and fabs((et[tt] - et[ht]) / et[tt]) >= RPNN_LMD_PCNT2)
+    sim_value &= false;
+   if(fabs(((et[th] - et[tt]) - (et[hh] - et[ht])) / (et[hh] - et[ht])) >= RPNN_LMD_PCNT1) {
+    if(sim_value == false)
+     return false;                        // not looping
+   }
+  }
   return true;
  };
 
  while(hare - tortoise <= error_trail_.capacity() - hare and
        hare < error_trail_.capacity()) {
-  if(fabs(et[tortoise] - et[hare]) / et[hare] < RPNN_LMD_PCNT and   // if values are close enough
-     is_looping()) {                                           // then see if it's looping
+  if(is_looping()) {                                            // then see if it's looping
     DBG(0) DOUT() << "LM trap detected at epoch " << epoch_
                   << ", error: " << global_error()
                   << " (target error: " << target_error() << ")" << std::endl;
@@ -1082,7 +1088,6 @@ bool Rpnn::is_lm_detected_(double err) {
   ++++hare;
   ++tortoise;
  }
-
  return false;
 }
 
