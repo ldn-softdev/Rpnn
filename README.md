@@ -156,7 +156,13 @@ bash $ <<<"
 bash $
 ```
 > As you might noticed, `rpn` was trained for _NOT XOR_ function instead
+
 That shows that the network has learnt the training material properly.
+
+
+
+
+
 
 
 
