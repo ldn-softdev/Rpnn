@@ -349,7 +349,7 @@ bash $ rpn -dd
 bash $ 
 ```
 
-Neurons synapses prove linkage to other neurons via `linked_neuron_ptr()`, so the topology could be traces down. In every topology there's one hidden
+Neurons synapses provide linkage to other neurons via `linked_neuron_ptr()`, so the topology could be traces down. In every topology there's one hidden
 neuron (a.k.a. "the one"), that neuron is required for a NN convergence and every effector is linked to that neuron - it's listed as the very first
 neuron in the above output.  
 All the other neurons are from user's configuration, i.e.: Neuron with address `0x7f91fbc06cf0` is a receptor (`is_receptor(): true`),
