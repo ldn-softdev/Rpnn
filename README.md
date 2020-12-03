@@ -21,17 +21,19 @@ a number of advantages over the standard backprop mechanism:
 1. [cli toy](https://github.com/ldn-softdev/jtc#cli-toy)
     * [Manual installation](...)
     * [`rpn` operations](...)
-      * learning mode
-      * trained mode
-      * Hello World!
-      * Multi-class
-    * `rpn` options and parameters 
+      * [learning mode](...)
+      * [trained mode](...)
+      * [Hello World!](...)
+      * [Multi-class](...)
+    * [`rpn` options and parameters](...)
+      * [Defaut parameters](...)
+      * [Configuring NN Topology]
 2. [C++ user interface](...)
 
 
 ## cli toy
 This package provides a simple unix cli tool which allows running `Rpnn` from shell and toying with your data easily:
-```help
+```
 bash $ rpn -h
 usage: rpn [-dhu] [-G N,M] [-c cost_func] [-e target_err] [-f file_name] [-g N,M] [-l transfer]
            [-m factor] [-n min,max] [-o transfer] [-p N,M] [-r file_name] [-s seed] [-t perceptrons]
@@ -140,7 +142,7 @@ Thus, it could be expressed to `rpn` as `-t 2,2,1` (note: no spaces between numb
 layers.
 
 And here we're good to run our first data sample:
-```
+```bash
 bash $ <<<"
 0, 0 = 1
 1, 0 = 0
@@ -151,7 +153,7 @@ Rpnn has converged at epoch 17 with error: 0.000299919
 bash $ 
 ```
 Now file `rpn.bin` contains the brain dump of the trained pattern and could be reused on the input data:
-```
+```bash
 bash $ <<<"
 0 0
 1 1
@@ -177,7 +179,7 @@ c) set _class3_ when the inputs are all ones (`1`,`1`)
 
 This type of classification require setting the logistic of all 3 output neurons to _Softmax_ activation function (default is `Sigmoid` for all neurons)
 and the cost function to be _Cross-Entropy_ (default is _Sum Squared Error_ - `Sse`):
-```
+```bash
 bash $ <<<"
 0,0 = 1 0 0
 1,0 = 0 1 0
@@ -188,7 +190,7 @@ Rpnn has converged at epoch 22 with error: 0.000758367
 bash $ 
 ```
 Now, the trained network will display all 3 classes (output neurons):
-```
+```bash
 bash $ <<<"
 0 0        
 1 1        
@@ -201,8 +203,7 @@ bash $
 ```
 
 
-### `rpn` options and parameters 
-
+### `rpn` options and parameters
 `rpn` is extensively debuggable, though using debug depth higher than 3 (`-ddd`) is not advisable as it will cause huge dumps on the console
 
 `rpn` has following default parameters when none given:
@@ -222,6 +223,8 @@ bash $ rpn -d
 ^Caborted due to user interrupt received: SIGINT (2)
 bash $ 
 ```
+
+#### Defaut parameters
 
 - Number of receptors 1
 - Number of effectors 1 (effector is a non-receptor neuron)
@@ -243,9 +246,6 @@ won't be required)
 are the same). Given that often the logistic function are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's max and min
 values are mapped around logistic's zero point. Default input normalization values are `-n -1,+1`.
 
-```
-.configure_rpn(), LM trail size: 4
-```
 Also, Rpnn limits _delta weight_ to the minimal and maximal values `1.e-6` and `1.e+4` respectively:
 ```
 #define RPNN_MIN_STEP   1.e-6
@@ -254,6 +254,9 @@ Also, Rpnn limits _delta weight_ to the minimal and maximal values `1.e-6` and `
 Thus, very small or very large input values simply won't converge, the input normalization ensures respective resolution precision.
 > next version of the framework will provide an option to alter such parameters
 
+```
+.configure_rpn(), LM trail size: 4
+```
 \- the framework provides a way to detect if during the convergence it ends up in the local minimum and re-initialize all the weights bouncing itself
 out of the local minimum trap. That mechanism is facilitated with the recording the error trail of each epoch's global error. The size of such trail
 typically is proportional to the total number of weights in the given topology with the default factor of `-m 2`. Though it does not always work and
@@ -274,7 +277,110 @@ A seed for randomization (weights initializing) is taken from the timer, though 
 the convergence with the same seed, which could be done using option `-s 1607022081931188`
 
 
+#### Configuring NN Topology
 
+NN topology could be verified with `-dd` debugging depth:
+```
+bash $ rpn -dd
+.configure_rpn(), receptors: 1
+.configure_rpn(), effectors: 1
+.configure_rpn(), output neurons: 1
+.configure_rpn(), target error: 0.001
+.configure_rpn(), normalize inputs: true
+.configure_rpn(), LM trail size: 4
+.configure_rpn(), cost function: cf_Sse
+.configure_rpn(), randomizer seed: timer (1607027167962425)
+.configure_rpn(), epochs to run: 100000
+..configure_rpn(), class 'Rpnn'...
+   Rpnn::addr(): 0x7ffee2b85bb0
+   Rpnn::min_step(): 1e-06
+   Rpnn::max_step(): 10000
+   Rpnn::dw_factor(): 1.1618
+   Rpnn::target_error_: 0.001
+   Rpnn::cost_func(): "Sse"
+   Rpnn::wbp_: 0x7ffee2b85c88
+   Rpnn::epoch_: 0
+   Rpnn::terminate_: false
+   Rpnn::effectors_start_idx(): 2
+   Rpnn::output_neurons_start_idx(): 2
+   Rpnn::neurons()[0]: class 'rpnnNeuron'...
+      neurons()[0]::addr(): 0x7f91fbc07170
+      neurons()[0]::host_nn_ptr(): 0x7ffee2b85bb0
+      neurons()[0]::is_receptor(): true
+      neurons()[0]::transfer_func(): "Sigmoid"
+      neurons()[0]::out(): 1
+      neurons()[0]::delta(): 0
+      neurons()[0]::bp_err(): 0
+      neurons()[0]::synapses(): []
+      neurons()[0]::inputs_ptr(): nullptr
+      neurons()[0]::sum_: 0
+   Rpnn::neurons()[1]: class 'rpnnNeuron'...
+      neurons()[1]::addr(): 0x7f91fbc06cf0
+      neurons()[1]::host_nn_ptr(): 0x7ffee2b85bb0
+      neurons()[1]::is_receptor(): true
+      neurons()[1]::transfer_func(): "Sigmoid"
+      neurons()[1]::out(): 1
+      neurons()[1]::delta(): 0
+      neurons()[1]::bp_err(): 0
+      neurons()[1]::synapses(): []
+      neurons()[1]::inputs_ptr(): nullptr
+      neurons()[1]::sum_: 0
+   Rpnn::neurons()[2]: class 'rpnnNeuron'...
+      neurons()[2]::addr(): 0x7f91fbc06d70
+      neurons()[2]::host_nn_ptr(): 0x7ffee2b85bb0
+      neurons()[2]::is_receptor(): false
+      neurons()[2]::transfer_func(): "Sigmoid"
+      neurons()[2]::out(): 1
+      neurons()[2]::delta(): 0
+      neurons()[2]::bp_err(): 0
+      neurons()[2]::synapses()[0]: rpnnSynapse.. host_nn_ptr():0x7ffee2b85bb0, linked_neuron_ptr():0x7f91fbc07170, weight():2.23001e-314, delta_weight():2.23003e-314, gradient():2.23003e-314, prior_gradient():0
+      neurons()[2]::synapses()[1]: rpnnSynapse.. host_nn_ptr():0x7ffee2b85bb0, linked_neuron_ptr():0x7f91fbc06cf0, weight():2.23003e-314, delta_weight():2.23003e-314, gradient():2, prior_gradient():0
+      neurons()[2]::inputs_ptr(): nullptr
+      neurons()[2]::sum_: 0
+   Rpnn::input_sets_: []
+   Rpnn::nis_[0]: Norm.. found_min():6.95327e-310, found_max():1.38833e-309, base():-1, range():2
+   Rpnn::target_sets_: []
+   Rpnn::nts_: []
+   Rpnn::output_errors_[0]: 0
+   Rpnn::lm_detector(): fifoDeque.. capacity():4, fifo():[]
+.run_convergence(), start reading training patterns...
 
+^Caborted due to user interrupt received: SIGINT (2)
+bash $ 
+```
 
+Neurons synapses prove linkage to other neurons via `linked_neuron_ptr()`, so the topology could be traces down. In every topology there's one hidden
+neuron (a.k.a. "the one"), that neuron is required for a NN convergence and every effector is linked to that neuron - it's listed as the very first
+neuron in the above output.  
+All the other neurons are from user's configuration, i.e.: Neuron with address `0x7f91fbc06cf0` is a receptor (`is_receptor(): true`),
+the logistic for receptor is irrelevant, as receptors only facilitate input values (patterns) access.
+   
+`Sigmoid` is a default transfer function for all the neurons, though all effectors (and output neurons separately) could be setup using other logistics:
+ - `Tanh` - could be used in hidden and output neurons
+ - `Tanhfast` - could be used in hidden and output neurons
+ - `Relu` - could be used only in hidden neurons
+ - `Softplus` - could be used only in hidden neurons 
+ - `Softmax` - could be used in hidden and output neurons, though for hidden neurons it's slower then `Relu`.
 
+Setting hidden effectors to a non-bound logistic (e.g.: `Relu`) requires understanding of the implications. On one hand it may result in a very fast convergence
+(if weights initialization is favorable, or multi-dimensional plane of f(x) = error(weights) is favorable for given task):
+```
+bash $ <<<"
+0 0 0
+1 0 1
+0 1 1
+1 1 0
+" rpn -t2,2,1 -l Relu -o Sigmoid 
+Rpnn has converged at epoch 12 with error: 0.000974536
+```
+Bur convergence of hidden neurons on `Relu` may (and most likely will) kick the weight way off the global region, resulting in wandering often around local minimals: 
+```
+bash $ <<<"
+0 0 0
+1 0 1
+0 1 1
+1 1 0
+" rpn -t2,2,1 -l Relu -o Sigmoid 
+Rpnn has converged at epoch 97363 with error: 0.000343371
+bash $ 
+```
