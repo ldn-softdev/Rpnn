@@ -118,20 +118,46 @@ _**Hello World!**_ task in the NN is the training of _XOR_ function (it's the si
 Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
 following topology is required:
 
-        ```
-        R----H
-         \  / \
-          \/   \
-          ||    O
-          /\   /
-         /  \ /
-        R----H
-        ```
+        R-----H
+         \   / \
+          \ /   \
+           X     O
+          / \   /
+         /   \ /
+        R-----H
 That topology is made of 3 layers:  
   - 1st layer is made of 2 receptors (`R`)  
   - 2nd layer is made of 2 hidden neurons (`H`)  
   - and finally the 3rd layer is made of a single output neuron (`O`).
-Thus, it could be expressed to `rpn` as `-t 2,2,1`. `rpn` provides a full-mesh synapse connectivity between layers by default.
+Thus, it could be expressed to `rpn` as `-t 2,2,1` (note: no spaces between numbers). `rpn` provides a full-mesh synapse connectivity between
+layers.
+
+And here we're good to run our first data sample:
+```
+bash $ <<<"
+0, 0 = 1
+1, 0 = 0
+0, 1 = 0
+1, 1 = 1
+" rpn -t2,2,1
+Rpnn has converged at epoch 17 with error: 0.000299919
+bash $ 
+```
+Now, file `rpn.bin` contains the brain dump of the trained patter and could be reused on the input data:
+```
+bash $ <<<"
+0 0
+1 1
+0 1
+" rpn -u -r rpn.bin
+1
+1
+0
+bash $
+```
+> As you might noticed, `rpn` was trained for _NOT XOR_ function instead
+That shows that the network has learnt the training material properly.
+
 
 
 
