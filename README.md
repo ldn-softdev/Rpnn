@@ -86,7 +86,7 @@ bash $
 2. trained more
 
 #### Learning mode
-In learning mode the rpn learns from the provided input/targes samples and once the solution is found (rpn succesfully converges) it dumps its
+In learning mode the `rpn` learns from the provided input/targes samples and once the solution is found (`rpn` successfully converges) it dumps its
 trained brains into the file (default filename is `rpn.bin`)
 
 Inputs are read line-by-line, each line containing _input and target figures_, so that the number of input figures corresponds to the number of
@@ -104,16 +104,16 @@ For example, say your topology has 2 receptors and 1 output neuron, then any of 
 The last line though might be confusing, as it still facilitates two inputs (`1`, `1`) and a single output (`0`), so apply your discretion when
 using separators.
 
-If rpnn does not find a solution (fails to converge), then it does not dump its brains into the file (then you should adjust parameters,
+If `rpn` does not find a solution (fails to converge), then it does not dump its brains into the file (then you should adjust parameters,
 e.g.: increase epochs, alter target error, change topology, etc). 
 
 #### Trained mode
-To start `rpn` in a trained mode, you need to give it a parameter `-r` followed by the file name where rpn brains are (default is `rpn.bin`)
+To start `rpn` in a trained mode, you need to give it a parameter `-r` followed by the file name where `rpn` brains are (default is `rpn.bin`)
 in the trained mode `rpn` accepts the input lines the same way like in the _Learning mode_, only the figures on each line here are inputs only
 (no target patterns this time)
 
 #### Hello World!
-_**Hello World!**_ task in the NN is the training of _XOR_ function (it's the simpliest task that requires a multi-perceptron to converge).
+_**Hello World!**_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
 
 Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
 following topology is required:
@@ -155,13 +155,9 @@ bash $ <<<"
 0
 bash $
 ```
-> As you might noticed, `rpn` was trained for _NOT XOR_ function instead
+> As you might have noticed, `rpn` was trained for _NOT XOR_ function instead
 
 That shows that the network has learnt the training material properly.
-
-
-
-
 
 
 
