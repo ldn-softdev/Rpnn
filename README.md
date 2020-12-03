@@ -246,10 +246,11 @@ Thus, very small or very large input values simply won't converge, the input nor
 
 \- the framework provides a way to detect if during the convergence it ends up in the local minimum and re-initialize all the weights bouncing itself
 out of the local minimum trap. That mechanism is facilitated with the recording the error trail of each epoch's global error. The size of such trail
-typically is proportional to the total number of weights in the given topology with the default factor of `-m 2`.  
-Though it's not always works and sometimes a longer trail needs to be tracked. The mechanism poses a dilemma though: LM trap detection drastically
-improves chances for a successful converge, but the trail size slows down the convergence itself (the bigger trail size, the slower training runs)
-- finding a right balance is the subject of some research for a given task.
+typically is proportional to the total number of weights in the given topology with the default factor of `-m 2`. Though it does not always work and
+sometimes a longer trail needs to be tracked.
+
+The mechanism poses a dilemma though: LM trap detection drastically improves chances for a successful converge, but the trail size slows down the
+convergence itself (the bigger trail size, the slower training runs) - finding a right balance is the subject of some research for a given task.
 
 
 
