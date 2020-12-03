@@ -113,7 +113,7 @@ in the trained mode `rpn` accepts the input lines the same way like in the _Lear
 (no target patterns this time)
 
 #### Hello World!
-_**Hello World!**_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
+_Hello World!_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
 
 Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
 following topology is required:
@@ -124,7 +124,7 @@ following topology is required:
                      X     O -> output
                     / \   /
                    /   \ /
-       input2 ->  R-----H
+        input2 -> R-----H
 That topology is made of 3 layers:  
   - 1st layer is made of 2 receptors (`R`)  
   - 2nd layer is made of 2 hidden neurons (`H`)  
@@ -143,7 +143,7 @@ bash $ <<<"
 Rpnn has converged at epoch 17 with error: 0.000299919
 bash $ 
 ```
-Now, file `rpn.bin` contains the brain dump of the trained pattern and could be reused on the input data:
+Now file `rpn.bin` contains the brain dump of the trained pattern and could be reused on the input data:
 ```
 bash $ <<<"
 0 0
@@ -160,6 +160,38 @@ bash $
 That shows that the network has learnt the training material properly.
 
 
+#### Multi-class
+The above example illustrates a _binary_ classification, though it's not the only possible type of classification, sometimes tasks reqiure multiple classes.
+E.g., the same solution could be explressed as 3 classes:
+
+a) set _class1_ when the inputs are all zero (`0`,`0`)  
+b) set _class2_ when the inputs vary (`1`,`0`, or `1`,`0`)  
+c) set _class3_ when the inputs are all ones (`1`,`1`)  
+
+This type of classification require setting the logistic of all 3 output neurons to _Softmax_ activation function (default is `Sigmoid` for all neurons)
+and the cost function to be Cross-Entropy (default is Sum Squared Error - `Sse`):
+```
+bash $ <<<"
+0,0 = 1 0 0
+1,0 = 0 1 0
+0,1 = 0 1 0
+1,1 = 0 0 1
+" rpn -t2,2,3 -o Softmax -c Xntropy
+Rpnn has converged at epoch 22 with error: 0.000758367
+bash $ 
+```
+Now, the trained network will display all 3 classes (output neurons):
+```
+bash $ <<<"
+0 0        
+1 1        
+0 1        
+" rpn -ur rpn.bin
+1 0 0
+0 0 1
+0 1 0
+bash $ 
+```
 
 
 
