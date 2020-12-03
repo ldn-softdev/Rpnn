@@ -201,7 +201,7 @@ bash $
 ```
 
 
-###`rpn` options and parameters 
+### `rpn` options and parameters 
 
 `rpn` is extensively debuggable, though using debug depth higher than 3 (`-ddd`) is not advisable as it will cause huge dumps on the console
 
