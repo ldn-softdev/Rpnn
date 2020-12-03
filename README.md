@@ -1,9 +1,9 @@
 # Rpnn (under construction)
-This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface.
+This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface.  
 No deppendancies, fully contained implementation.
 
 Resilient backprop is [known to be the fastest](https://en.wikipedia.org/wiki/Rprop) learning NN in the family of backprops, featuring
-a number of advantages of the standard backprop mechanisms:
+a number of advantages of the standard backprop mechanism:
 - the learning rule is no longer proportional to the size of the gradient, only the sign of the computed gradient matters
   - programmatically it means no need for plugging a partial derrevative of the logistic function (plugging only the logistic is enough)
   - it's not prone to [vanishing gradient problem](https://en.wikipedia.org/wiki/Vanishing_gradient_problem) that the standart backprop suffers from
