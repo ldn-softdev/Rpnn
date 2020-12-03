@@ -4,9 +4,11 @@ No dependencies, fully contained implementation.
 
 ##### Enhancement requests and/or questions are more than welcome: *ldn.softdev@gmail.com*
 
+#
+
 Resilient backprop is [known to be the fastest](https://en.wikipedia.org/wiki/Rprop) learning NN in the family of backprops, featuring
-a number of advantages of the standard backprop mechanism:
-- the learning rule is not proportional to the size of the gradient, only the sign of the computed gradient matters
+a number of advantages over the standard backprop mechanism:
+- the learning rule is no longer proportional to the size of the gradient, only the sign of the computed gradient matters
   - programmatically it means no need for plugging a derivative of the logistic function (plugging only the logistic will do)
   - it's not prone to [vanishing gradient problem](https://en.wikipedia.org/wiki/Vanishing_gradient_problem) that the standard backprop suffers from
 - the configuration of the _rprop_ is simple and not as complex and sensitive as the standard backprop's
@@ -16,13 +18,18 @@ a number of advantages of the standard backprop mechanism:
 - the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence 
 
 ### Content:
-1. [cli tool](https://github.com/ldn-softdev/jtc#cli-tool)
+1. [cli toy](https://github.com/ldn-softdev/jtc#cli-toy)
     * [Manual installation](...)
     * [`rpn` operations](...)
+      * learning mode
+      * trained mode
+      * Hello World!
+      * Multi-class
+    * `rpn` options and parameters 
 2. [C++ user interface](...)
 
 
-## cli tool
+## cli toy
 This package provides a simple unix cli tool which allows running `Rpnn` from shell and toying with your data easily:
 ```help
 bash $ rpn -h
@@ -83,7 +90,7 @@ bash $
 ### `rpn` operations
 `rpn` operates in two modes:
 1. learning mode
-2. trained more
+2. trained mode
 
 #### Learning mode
 In learning mode the `rpn` learns from the provided input/targes samples and once the solution is found (`rpn` successfully converges) it dumps its
@@ -113,7 +120,7 @@ in the trained mode `rpn` accepts the input lines the same way like in the _Lear
 (no target patterns this time)
 
 #### Hello World!
-_Hello World!_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
+_"Hello World!"_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
 
 Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
 following topology is required:
@@ -161,8 +168,8 @@ That shows that the network has learnt the training material properly.
 
 
 #### Multi-class
-The above example illustrates a _binary_ classification, though it's not the only possible type of classification, sometimes tasks reqiure multiple classes.
-E.g., the same solution could be explressed as 3 classes:
+The above example illustrates a _binary_ classification, though it's not the only possible type of classification, sometimes tasks require multiple classes.
+E.g., the same solution could be expressed as 3 classes:
 
 a) set _class1_ when the inputs are all zero (`0`,`0`)  
 b) set _class2_ when the inputs vary (`1`,`0`, or `1`,`0`)  
@@ -192,6 +199,61 @@ bash $ <<<"
 0 1 0
 bash $ 
 ```
+
+
+###`rpn` options and parameters 
+
+`rpn` is extensively debuggable, though using debug depth higher than 3 (`-ddd`) is not advisable as it will cause huge dumps on the console
+
+`rpn` has following default parameters when none given:
+```
+bash $ rpn -d
+.configure_rpn(), receptors: 1
+.configure_rpn(), effectors: 1
+.configure_rpn(), output neurons: 1
+.configure_rpn(), target error: 0.001
+.configure_rpn(), normalize inputs: true
+.configure_rpn(), LM trail size: 4
+.configure_rpn(), cost function: cf_Sse
+.configure_rpn(), randomizer seed: timer (1607022081931188)
+.configure_rpn(), epochs to run: 100000
+.run_convergence(), start reading training patterns...
+
+^Caborted due to user interrupt received: SIGINT (2)
+bash $ 
+```
+
+- Number of receptors 1
+- Number of effectors 1 (effector is a non-receptor neuron)
+- Number of output neurons 1 (output neuron is also effector)
+thus such default topology is expressed as an option `-t 1,1` (there are only 2 neurons in such topology)
+
+\- option `-e` allows setting the target error for convergence. Some tasks might not even have global minimum solutions (typically it'll be function approximations/regressions)
+thus adjusting target error (to the higher end) might be required.
+> next version of the framework will have an option of finding the deepest local minimum in absence of a global one (i.e. the manual weight adjustments
+won't be required)
+
+\- Inputs normalization is on by default and could be turned off with option `-n 0,0`, or `-n 1,1` (any combination where `min` and `max` parameters
+are the same). Given that often the logistic function are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's max and min
+values are mapped around logistic's zero point. Default input normalization values are `-n -1,+1`.   Also, Rpnn limits _delta weight_ to the minimal
+and maximal values `1.e-6` and `1.e+4` respectively:
+```
+#define RPNN_MIN_STEP   1.e-6
+#define RPNN_MAX_STEP   1.e+4
+```
+Thus, very small or very large input values simply won't converge, the input normalization ensures respective resolution precision.
+> next version of the framework will provide an option to alter such parameters
+
+\- the framework provides a way to detect if during the convergence it ends up in the local minimum and re-initialize all the weights bouncing itself
+out of the local minimum trap. That mechanism is facilitated with the recording the error trail of each epoch's global error. The size of such trail
+typically is proportional to the total number of weights in the given topology with the default factor of `-m 2`.  
+Though it's not always works and sometimes a longer trail needs to be tracked. The mechanism poses a dilemma though: LM trap detection drastically
+improves chances for a successful converge, but the trail size slows down the convergence itself (the bigger trail size, the slower training runs)
+- finding a right balance is the subject of some research for a given task.
+
+
+
+
 
 
 
