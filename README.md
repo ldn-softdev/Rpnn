@@ -118,13 +118,13 @@ _**Hello World!**_ task in the NN is the training of _XOR_ function (it's the si
 Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
 following topology is required:
 
-        R-----H
-         \   / \
-          \ /   \
-           X     O
-          / \   /
-         /   \ /
-        R-----H
+        input1 -> R-----H
+                   \   / \
+                    \ /   \
+                     X     O -> output
+                    / \   /
+                   /   \ /
+       input2 ->  R-----H
 That topology is made of 3 layers:  
   - 1st layer is made of 2 receptors (`R`)  
   - 2nd layer is made of 2 hidden neurons (`H`)  
@@ -143,7 +143,7 @@ bash $ <<<"
 Rpnn has converged at epoch 17 with error: 0.000299919
 bash $ 
 ```
-Now, file `rpn.bin` contains the brain dump of the trained patter and could be reused on the input data:
+Now, file `rpn.bin` contains the brain dump of the trained pattern and could be reused on the input data:
 ```
 bash $ <<<"
 0 0
