@@ -169,7 +169,7 @@ b) set _class2_ when the inputs vary (`1`,`0`, or `1`,`0`)
 c) set _class3_ when the inputs are all ones (`1`,`1`)  
 
 This type of classification require setting the logistic of all 3 output neurons to _Softmax_ activation function (default is `Sigmoid` for all neurons)
-and the cost function to be Cross-Entropy (default is Sum Squared Error - `Sse`):
+and the cost function to be _Cross-Entropy_ (default is _Sum Squared Error_ - `Sse`):
 ```
 bash $ <<<"
 0,0 = 1 0 0
