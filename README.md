@@ -247,7 +247,7 @@ won't be required)
 #
 
 ```
-.configure_rpn(), normalize inputs: true -1.000000 to 1.000000
+.configure_rpn(), normalize inputs: true [-1 to 1]
 ```
 \- Inputs normalization is on by default and could be turned off with option `-n 0,0`, or `-n 1,1` (any combination where `min` and `max` parameters
 are the same). Given that often the logistic functions are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's max and min
@@ -311,7 +311,7 @@ Another cost function is _Cross Entropy_ (`Xntropy`)
 #
 
 ```
-.configure_rpn(), randomizer seed: timer (1607022081931188)
+.configure_rpn(), randomizer seed: timer (1607090033445218)
 ```
 A seed for randomization (weights initializing) is taken from the timer, though for some debugging (or research) purposes it might require running
 the convergence with the same seed, which could be done using option `-s 1607022081931188`
