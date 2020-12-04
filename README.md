@@ -1,3 +1,4 @@
+
 # `Rpnn` (under construction)
 This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface.  
 No dependencies, fully contained implementation.
@@ -360,7 +361,7 @@ the logistic for receptor is irrelevant, as receptors only facilitate input valu
  - `Tanhfast` - could be used in hidden and output neurons
  - `Relu` - could be used only in hidden neurons
  - `Softplus` - could be used only in hidden neurons 
- - `Softmax` - could be used in hidden and output neurons, though for hidden neurons it's slower then `Relu`.
+ - `Softmax` - could be used in hidden and output neurons, though for hidden neurons it's slower than `Relu`.
 
 Setting hidden effectors to a non-bound logistic (e.g.: `Relu`) requires understanding of the implications. On one hand it may result in a very fast
 convergence (if weights initialization is favorable, or multi-dimensional plane of f(x) = error(weights) is favorable for given task):
@@ -373,7 +374,7 @@ bash $ <<<"
 " rpn -t2,2,1 -l Relu -o Sigmoid 
 Rpnn has converged at epoch 12 with error: 0.000974536
 ```
-Bur convergence of hidden neurons on `Relu` may (and most likely will) kick the weight way off the global region, resulting in wandering often 
+However, convergence of hidden neurons on `Relu` may (and most likely will) kick the weights way afar the global region, resulting in wandering often 
 around local minimums: 
 ```
 bash $ <<<"
