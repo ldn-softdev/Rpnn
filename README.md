@@ -96,7 +96,7 @@ bash $
 2. trained mode
 
 #### Learning mode
-In learning mode the `rpn` learns from the provided input/targes samples and once the solution is found (`rpn` successfully converges) it dumps its
+In learning mode the `rpn` learns from the provided input/targets samples and once the solution is found (`rpn` successfully converges) it dumps its
 trained brains into the file (default filename is `rpn.bin`)
 
 Inputs are read line-by-line, each line containing _input and target figures_, so that the number of input figures corresponds to the number of
