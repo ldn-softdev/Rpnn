@@ -130,13 +130,13 @@ _"Hello World!"_ task in the NN is the training of _XOR_ function (it's the simp
 Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
 following topology is required:
 
-        input1 -> R-----H
-                   \   / \
-                    \ /   \
-                     X     O -> output
-                    / \   /
-                   /   \ /
-        input2 -> R-----H
+    
+        input1 -> R---H
+                   \ / \
+                    X   O -> output
+                   / \ /
+        input2 -> R---H
+    
 That topology is made of 3 layers:  
   - 1st layer is made of 2 receptors (`R`)  
   - 2nd layer is made of 2 hidden neurons (`H`)  
@@ -316,6 +316,27 @@ Another cost function is _Cross Entropy_ (`Xntropy`)
 A seed for randomization (weights initializing) is taken from the timer, though for some debugging (or research) purposes it might require running
 the convergence with the same seed, which could be done using option `-s 1607022081931188`
 
+#
+option `-u` rounds up output result (in trained mode) to an integer, w/o it `rpn` willl dispay the resulting value (with the achieved accuracy):
+```
+bash $ <<<"
+1e-5, 1e-5
+1e-5, 2e-5
+2e-5, 1e-5
+2e-5, 2e-5
+" rpn -r rpn.bin
+10.1844
+19.9954
+19.9816
+10.1786
+bash $ 
+```
+
+#
+option `-f <file>` let dumping trained `rpn` brains (upon a successful convergence) into the file of your choice (default output file is `rpn.bin`)
+option `-r <file>` reads and reinstate brains state entirely from the file ready to run the input data 
+
+
 
 #### Configuring NN Topology
 
@@ -427,13 +448,13 @@ bash $
 ```
 
 ##### Growing and pruning synapses
-If full-mesh connectivity between neuron layers is not enough and you want to add more (typically recursive links), then it's possible to do it via options `-g`, `-G`:
+If full-mesh connectivity between neuron layers is not enough and you want to add more (typically recursive links), then it's possible to do it
+via options `-g`, `-G`:
 
 - `-g N,M` allows adding a single synapse for neurons N to M's output (i.e., a connection from M to N considering forward signal flow)
 - `-G N,M` this will ensure that between neurons N and M all recursive synapses added
 > base of values M and N is the same as in debug output - it's all zero based, but the first neuron is always reserved) 
 
-
 option `-p N,M` allows pruning a single synapse at the neuron N for the (address of) neuron M
-  
+
 
