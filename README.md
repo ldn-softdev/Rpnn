@@ -19,16 +19,17 @@ a number of advantages over the standard backprop mechanism:
 - the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence 
 
 ### Content:
-1. [cli toy](https://github.com/ldn-softdev/jtc#cli-toy)
-    * [Manual installation](...)
-    * [`rpn` operations](...)
-      * [learning mode](...)
-      * [trained mode](...)
-      * [Hello World!](...)
-      * [Multi-class](...)
-    * [`rpn` options and parameters](...)
-      * [Defaut parameters](...)
-      * [Configuring NN Topology]
+1. [cli toy](https://github.com/ldn-softdev/Rpnn#cli-toy)
+    * [Manual installation](https://github.com/ldn-softdev/Rpnn#manual-installation)
+    * [`rpn` operations](https://github.com/ldn-softdev/Rpnn#rpn-operations)
+      * [learning mode](https://github.com/ldn-softdev/Rpnn#learning-mode)
+      * [trained mode](https://github.com/ldn-softdev/Rpnn#trained-mode)
+      * [Hello World!](https://github.com/ldn-softdev/Rpnn#hello-world)
+      * [Multi-class](https://github.com/ldn-softdev/Rpnn#multi-class)
+    * [`rpn` options and parameters](https://github.com/ldn-softdev/Rpnn#rpn-options-and-parameters)
+      * [Defaut parameters](https://github.com/ldn-softdev/Rpnn#defaut-parameters)
+      * [Configuring NN Topology](https://github.com/ldn-softdev/Rpnn#configuring-nn-topology)
+        * [Growing and pruning synapses](https://github.com/ldn-softdev/Rpnn#Growing-and-pruning-synapses)
 2. [C++ user interface](...)
 
 
@@ -388,7 +389,7 @@ Rpnn has converged at epoch 97363 with error: 0.000343371
 bash $ 
 ```
 
-#### Growing synapses
+##### Growing and pruning synapses
 If full-mesh connectivity between neuron layers is not enough and you want to add more (typically recursive links), then it's possible to do it via options `-g`, `-G`:
 
 - `-g N,M` allows adding a single synapse for neurons N to M's output (i.e., a connection from M to N considering forward signal flow)
@@ -396,11 +397,6 @@ If full-mesh connectivity between neuron layers is not enough and you want to ad
 > base of values M and N is the same as in debug output - it's all zero based, but the first neuron is always reserved) 
 
 
-#### Prunning synapses
-option `-p N,M`allows pruning a synapse at the neuron N for the (address of) neuron M
+option `-p N,M` allows pruning a single synapse at the neuron N for the (address of) neuron M
   
-
-
-
-
 
