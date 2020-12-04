@@ -361,7 +361,7 @@ the logistic for receptor is irrelevant, as receptors only facilitate input valu
  - `Tanhfast` - could be used in hidden and output neurons
  - `Relu` - could be used only in hidden neurons
  - `Softplus` - could be used only in hidden neurons 
- - `Softmax` - could be used in hidden and output neurons, though for hidden neurons it's slower than `Relu`.
+ - `Softmax` - сould be used in output neurons only.
 
 Setting hidden effectors to a non-bound logistic (e.g.: `Relu`) requires understanding of the implications. On one hand it may result in a very fast
 convergence (if weights initialization is favorable, or multi-dimensional plane of f(x) = error(weights) is favorable for given task):
