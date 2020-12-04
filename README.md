@@ -179,7 +179,7 @@ b) set _class2_ when the inputs vary (`1`,`0`, or `1`,`0`)
 c) set _class3_ when the inputs are all ones (`1`,`1`)  
 
 This type of classification require setting the logistic of all 3 output neurons to _Softmax_ activation function (default is `Sigmoid` for all neurons)
-and the cost function to be _Cross-Entropy_ (default is _Sum Squared Error_ - `Sse`):
+and the cost function to be _Cross-Entropy_ (default is _Sum of Squared Errors_ - `Sse`):
 ```bash
 bash $ <<<"
 0,0 = 1 0 0
@@ -268,7 +268,7 @@ convergence itself (the bigger trail size, the slower training runs) - finding a
 ```
 .configure_rpn(), cost function: cf_Sse
 ```
-Default cost function to evaluate convergence (across all the output neurons) is _Squared Sum Erros_ (`Sse`).
+Default cost function to evaluate convergence (across all the output neurons) is _Sum of Squared Errors_ (`Sse`).
 Another cost function is _Cross Entropy_ (`Xntropy`)
 
 ```
