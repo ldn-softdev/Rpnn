@@ -367,10 +367,10 @@ Setting hidden effectors to a non-bound logistic (e.g.: `Relu`) requires underst
 convergence (if weights initialization is favorable, or multi-dimensional plane of f(x) = error(weights) is favorable for given task):
 ```
 bash $ <<<"
-0 0 0
-1 0 1
-0 1 1
-1 1 0
+0 0 = 0
+1 0 = 1
+0 1 = 1
+1 1 = 0
 " rpn -t2,2,1 -l Relu -o Sigmoid 
 Rpnn has converged at epoch 12 with error: 0.000974536
 ```
@@ -378,10 +378,10 @@ However, convergence of hidden neurons on `Relu` may (and most likely will) kick
 around local minimums: 
 ```
 bash $ <<<"
-0 0 0
-1 0 1
-0 1 1
-1 1 0
+0 0 = 0
+1 0 = 1
+0 1 = 1
+1 1 = 0
 " rpn -t2,2,1 -l Relu -o Sigmoid 
 Rpnn has converged at epoch 97363 with error: 0.000343371
 bash $ 
