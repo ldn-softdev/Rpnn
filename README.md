@@ -27,7 +27,7 @@ a number of advantages over the standard backprop mechanism:
       * [Hello World!](https://github.com/ldn-softdev/Rpnn#hello-world)
       * [Multi-class](https://github.com/ldn-softdev/Rpnn#multi-class)
     * [`rpn` options and parameters](https://github.com/ldn-softdev/Rpnn#rpn-options-and-parameters)
-      * [Defaut parameters](https://github.com/ldn-softdev/Rpnn#defaut-parameters)
+      * [Default parameters](https://github.com/ldn-softdev/Rpnn#default-parameters)
       * [Configuring NN Topology](https://github.com/ldn-softdev/Rpnn#configuring-nn-topology)
         * [Growing and pruning synapses](https://github.com/ldn-softdev/Rpnn#Growing-and-pruning-synapses)
 2. [C++ user interface](...)
@@ -227,12 +227,14 @@ bash $ rpn -d
 bash $ 
 ```
 
-#### Defaut parameters
+#### Default parameters
 
 - Number of receptors 1
 - Number of effectors 1 (effector is a non-receptor neuron)
 - Number of output neurons 1 (output neuron is also effector)
 thus such default topology is expressed as an option `-t 1,1` (there are only 2 neurons in such topology)
+
+#
 
 ```
 .configure_rpn(), target error: 0.001
@@ -241,6 +243,8 @@ thus such default topology is expressed as an option `-t 1,1` (there are only 2 
 function approximations/regressions) thus adjusting target error (to the higher end) might be required.
 > next version of the framework will have an option of finding the deepest local minimum in absence of a global one (i.e. the manual weight adjustments
 won't be required)
+
+#
 
 ```
 .configure_rpn(), normalize inputs: true -1.000000 to 1.000000
@@ -257,6 +261,34 @@ Also, Rpnn limits _delta weight_ to the minimal and maximal values `1.e-6` and `
 Thus, very small or very large input values simply won't converge, the input normalization ensures respective resolution precision.
 > next version of the framework will provide an option to alter such parameters
 
+For example, this converges fine with the normalization on (default):
+```
+bash $ <<<"
+1e-5, 1e-5 = 10
+1e-5, 2e-5 = 20
+2e-5, 1e-5 = 20
+2e-5, 2e-5 = 10
+" rpn -t2,2,1
+Rpnn has converged at epoch 40 with error: 0.000512515
+bash $ 
+bash $ <<<"2e-5, 2e-5 " rpn -ur rpn.bin
+10
+bash $ 
+```
+
+But with the normalization turned off, it'll fail to find a soulution:
+bash $ <<<"                            
+1e-5, 1e-5 = 10
+1e-5, 2e-5 = 20
+2e-5, 1e-5 = 20
+2e-5, 2e-5 = 10
+" rpn -t2,2,1 -n0,0
+Rpnn could not converge for 100000 epochs (err: 1.00001) - not saving
+bash $ 
+```
+
+#
+
 ```
 .configure_rpn(), LM trail size: 4
 ```
@@ -267,11 +299,15 @@ sometimes a longer trail needs to be tracked.
 > The mechanism poses a dilemma though: LM trap detection drastically improves chances for a successful converge, but the trail size slows down the
 convergence itself (the bigger trail size, the slower training runs) - finding a right balance is the subject of some research for a given task.
 
+#
+
 ```
 .configure_rpn(), cost function: cf_Sse
 ```
 Default cost function to evaluate convergence (across all the output neurons) is _Sum of Squared Errors_ (`Sse`).
 Another cost function is _Cross Entropy_ (`Xntropy`)
+
+#
 
 ```
 .configure_rpn(), randomizer seed: timer (1607022081931188)
