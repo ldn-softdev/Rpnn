@@ -82,7 +82,6 @@ available logistic functions:
 - factor for option -m is multiple of the total count of synapses (weights)
 
 bash $ 
-bash $ 
 ```
 
 ### Manual installation
@@ -99,31 +98,31 @@ bash $
 2. trained mode
 
 #### Learning mode
-In learning mode the `rpn` learns from the provided input/targets samples and once the solution is found (`rpn` successfully converges) it dumps its
-trained brains into the file (default filename is `rpn.bin`)
+In the learning mode `rpn` learns from the provided input/targets samples and once the solution is found (`rpn` successfully converges) it dumps its
+trained brains into the file (default file is `rpn.bin`)
 
-Inputs are read line-by-line, each line containing _input and target figures_, so that the number of input figures corresponds to the number of
-receptors in the configured topology and the number of target figures corresponds to the number or output neurons. The figures on the input line
-should be separated with blank space, optionally with `,` or `=` symbols
-(note: there's no semantical significance for separators, so they could be interchanged freely)
+Training pattern inputs are read line-by-line, each line containing _input and target values_, so that the number of input values corresponds to the
+number of receptors in the configured topology, and the number of target values corresponds to the number or output neurons. The values on the input
+line should be separated with blank space, optionally with `,` or `=` symbols
+(note: there's no semantical significance for separators, so they could be interchanged/duplicated freely)
 
 For example, say your topology has 2 receptors and 1 output neuron, then any of following input lines are fine:
 ```
 0 0 0
 0, 1, 1
-1, 0 = 1
+1,0 = 1
 1==1,,0
 ```
 The last line though might be confusing, as it still facilitates two inputs (`1`, `1`) and a single output (`0`), so apply your discretion when
-using separators.
+using value separators.
 
 If `rpn` does not find a solution (fails to converge), then it does not dump its brains into the file (then you should adjust parameters,
 e.g.: increase epochs, alter target error, change topology, etc). 
 
 #### Trained mode
 To start `rpn` in a trained mode, you need to give it a parameter `-r` followed by the file name where `rpn` brains are (default is `rpn.bin`)
-in the trained mode `rpn` accepts the input lines the same way like in the _Learning mode_, only the figures on each line here are inputs only
-(no target patterns this time)
+in the trained mode `rpn` accepts the input lines the same way like in the _Learning mode_, only the values on each line here are input patterns
+only (no target patterns this time)
 
 #### Hello World!
 _"Hello World!"_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
@@ -181,8 +180,8 @@ a) set _class1_ when the inputs are all zero (`0`,`0`)
 b) set _class2_ when the inputs vary (`1`,`0`, or `1`,`0`)  
 c) set _class3_ when the inputs are all ones (`1`,`1`)  
 
-This type of classification require setting the logistic of all 3 output neurons to _Softmax_ activation function (default is `Sigmoid` for all neurons)
-and the cost function to be _Cross-Entropy_ (default is _Sum of Squared Errors_ - `Sse`):
+This type of classification require setting the logistic of all 3 output neurons (one output neuron per class) to _Softmax_ activation function (default is
+`Sigmoid` for all neurons) and the cost function to be _Cross-Entropy_ (default is _Sum of Squared Errors_ - `Sse`):
 ```bash
 bash $ <<<"
 0,0 = 1 0 0
@@ -217,10 +216,10 @@ bash $ rpn -d
 .configure_rpn(), effectors: 1
 .configure_rpn(), output neurons: 1
 .configure_rpn(), target error: 0.001
-.configure_rpn(), normalize inputs: true [-1 to 1]
+.configure_rpn(), normalize inputs: true [-1 to +1]
 .configure_rpn(), LM trail size: 4
 .configure_rpn(), cost function: cf_Sse
-.configure_rpn(), randomizer seed: timer (1607090033445218)
+.configure_rpn(), randomizer seed: timer (1607111744408880)
 .configure_rpn(), epochs to run: 100000
 .run_convergence(), start reading training patterns...
 
@@ -241,26 +240,26 @@ thus such default topology is expressed as an option `-t 1,1` (there are only 2 
 .configure_rpn(), target error: 0.001
 ```
 \- option `-e` allows setting the target error for convergence. Some tasks might not even have global minimum solutions (typically it'll be
-function approximations/regressions) thus adjusting target error (to the higher end) might be required.
+a function approximations/regressions), thus adjusting target error (to the higher end) might be required.
 > next version of the framework will have an option of finding the deepest local minimum in absence of a global one (i.e. the manual weight adjustments
 won't be required)
 
 #
 
 ```
-.configure_rpn(), normalize inputs: true [-1 to 1]
+.configure_rpn(), normalize inputs: true [-1 to +1]
 ```
 \- Inputs normalization is on by default and could be turned off with option `-n 0,0`, or `-n 1,1` (any combination where `min` and `max` parameters
-are the same). Given that often the logistic functions are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's max and min
+are the same). Given that the logistic functions often are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's _max_ and _min_
 values are mapped around logistic's zero point. Default input normalization values are `-n -1,+1`.
 
-Also, Rpnn limits _delta weight_ to the minimal and maximal values `1.e-6` and `1.e+3` respectively:
+Also, Rpnn limits _delta weight_ step's _min_ and _max_ values to `1.e-6` and `1.e+3` respectively:
 ```
 #define RPNN_MIN_STEP   1.e-6
 #define RPNN_MAX_STEP   1.e+3
 ```
-Thus, very small or very large input values simply won't converge, the input normalization ensures respective resolution precision.
-> next version of the framework will provide an option to alter such parameters
+Thus, very small or very large input values w/o normalization simply won't converge - the input normalization ensures respective resolution precision.
+> next version of the framework will provide an option to alter such parameters (i.e. _min_ and _max delta weight_ steps)
 
 For example, this converges fine with the normalization on (default):
 ```
@@ -294,10 +293,10 @@ bash $
 ```
 .configure_rpn(), LM trail size: 4
 ```
-\- the framework provides a way to detect if during the convergence it ends up in the local minimum and re-initialize all the weights bouncing itself
-out of the local minimum trap. That mechanism is facilitated with the recording the error trail of each epoch's global error. The size of such trail
-typically is proportional to the total number of weights in the given topology with the default factor of `-m 2`. Though it does not always work and
-sometimes a longer trail needs to be tracked.
+\- the framework provides a way to detect if during the convergence it ends up in the local minimum valley allowing re-initializing all weights and 
+bouncing itself out of the local minimum trap. That mechanism is facilitated with the recording the error trail of each epoch's global error. The
+size of such trail typically is proportional to the total number of weights in the given topology with the default factor of `-m 2`. Though it does
+not always work and sometimes a longer trail needs to be tracked.
 > The mechanism poses a dilemma though: LM trap detection drastically improves chances for a successful converge, but the trail size slows down the
 convergence itself (the bigger trail size, the slower training runs) - finding a right balance is the subject of some research for a given task.
 
@@ -314,8 +313,8 @@ Another cost function is _Cross Entropy_ (`Xntropy`)
 ```
 .configure_rpn(), randomizer seed: timer (1607090033445218)
 ```
-A seed for randomization (weights initializing) is taken from the timer, though for some debugging (or research) purposes it might require running
-the convergence with the same seed, which could be done using option `-s 1607022081931188`
+A seed for randomization (weights initializing) is taken from the timer, though for some debugging (or research) purposes it might be required 
+running multiple convergences with the same seed, which could be done using option `-s <seed>`
 
 #
 option `-u` rounds up output result (in trained mode) to an integer, w/o it `rpn` will display the resulting value (with the achieved accuracy):
@@ -334,14 +333,14 @@ bash $
 ```
 
 #
-option `-f <file>` let dumping trained `rpn` brains (upon a successful convergence) into the file of your choice (default output file is `rpn.bin`)
+option `-f <file>` lets dumping trained `rpn` brains (upon a successful convergence) into the file of your choice (default output file is `rpn.bin`)
 option `-r <file>` reads and reinstate brains state entirely from the file ready to run the input data 
 
 
 
 #### Configuring NN Topology
 
-NN topology could be verified with `-dd` debugging depth:
+NN topology could be verified with `-dd` debug depth:
 ```
 bash $ rpn -dd
 .configure_rpn(), receptors: 1
@@ -411,11 +410,11 @@ bash $ rpn -dd
 bash $ 
 ```
 
-Neurons synapses provide linkage to other neurons via `linked_neuron_ptr()`, so the topology could be traces down. In every topology there's one hidden
-neuron (a.k.a. "the one"), that neuron is required for a NN convergence and every effector is linked to that neuron - it's listed as the very first
-neuron in the above output.  
+Neuron synapses provide linkage to other neurons via `linked_neuron_ptr()`, so the topology could be traces down. In every topology there's one hidden
+neuron (a.k.a. _"the one"_), that neuron is required for a NN convergence and every effector is linked to that neuron - _"the one"_ is always shown
+first neuron in the above output.  
 All the other neurons are from user's configuration, i.e.: Neuron with address `0x7f91fbc06cf0` is a receptor (`is_receptor(): true`),
-the logistic for receptor is irrelevant, as receptors only facilitate input values (patterns) access.
+the logistic for a receptor is irrelevant, as receptors only facilitate input (patterns) values access.
    
 `Sigmoid` is a default transfer function for all the neurons, though all effectors (and output neurons separately) could be setup using other logistics:
  - `Tanh` - could be used in hidden and output neurons
@@ -424,8 +423,8 @@ the logistic for receptor is irrelevant, as receptors only facilitate input valu
  - `Softplus` - could be used only in hidden neurons 
  - `Softmax` - сould be used in output neurons only.
 
-Setting hidden effectors to a non-bound logistic (e.g.: `Relu`) requires understanding of the implications. On one hand it may result in a very fast
-convergence (if weights initialization is favorable, or multi-dimensional plane of f(x) = error(weights) is favorable for given task):
+Setting hidden effectors to a non-bound logistic (`Relu`, `Softmax`) requires understanding of the implications. On one hand it may result in a very fast
+convergence (if weights initialization is favorable, or multi-dimensional plane of _f(x) = error(weights)_ is favorable for given task):
 ```
 bash $ <<<"
 0 0 = 0
@@ -449,12 +448,17 @@ bash $
 ```
 
 ##### Growing and pruning synapses
-If full-mesh connectivity between neuron layers is not enough and you want to add more (typically recursive links), then it's possible to do it
-via options `-g`, `-G`:
+If a full-mesh connectivity between neuron layers is not enough and you want to add more connections (typically recursive links), then it's possible 
+to do it via options `-g`, `-G`:
 
 - `-g N,M` allows adding a single synapse for neurons N to M's output (i.e., a connection from M to N considering forward signal flow)
 - `-G N,M` this will ensure that between neurons N and M all recursive synapses added
 > base of values M and N is the same as in debug output - it's all zero based, but the first neuron is always reserved) 
 
+
 option `-p N,M` allows pruning a single synapse at the neuron N for the (address of) neuron M
+
+
+
+
 
