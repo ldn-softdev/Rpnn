@@ -244,13 +244,13 @@ won't be required)
 .configure_rpn(), normalize inputs: true
 ```
 \- Inputs normalization is on by default and could be turned off with option `-n 0,0`, or `-n 1,1` (any combination where `min` and `max` parameters
-are the same). Given that often the logistic function are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's max and min
+are the same). Given that often the logistic functions are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's max and min
 values are mapped around logistic's zero point. Default input normalization values are `-n -1,+1`.
 
-Also, Rpnn limits _delta weight_ to the minimal and maximal values `1.e-6` and `1.e+4` respectively:
+Also, Rpnn limits _delta weight_ to the minimal and maximal values `1.e-6` and `1.e+3` respectively:
 ```
 #define RPNN_MIN_STEP   1.e-6
-#define RPNN_MAX_STEP   1.e+4
+#define RPNN_MAX_STEP   1.e+3
 ```
 Thus, very small or very large input values simply won't converge, the input normalization ensures respective resolution precision.
 > next version of the framework will provide an option to alter such parameters
