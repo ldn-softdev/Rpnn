@@ -13,7 +13,8 @@ a number of advantages over the standard backprop mechanism:
   - programmatically it means no need for plugging a derivative of the logistic function (plugging only the logistic will do)
   - it's not prone to [vanishing gradient problem](https://en.wikipedia.org/wiki/Vanishing_gradient_problem) that the standard backprop suffers from
 - the configuration of the _rprop_ is simple and not as complex and sensitive as the standard backprop's
-- this implementation provides auto normalization of outputs and optionally of the inputs (why inputs might need normalization [link TBU])
+- this implementation provides auto normalization of outputs and optionally of the inputs 
+([why inputs may require normalization](https://github.com/ldn-softdev/Rpnn#default-parameters))
 - the framework is fully and easily SERSES'able [link TBU]
 - the framework also support multi-class classification (support of _Softmax_ logistic at the output perceptron)
 - the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence 
@@ -102,7 +103,7 @@ In learning mode the `rpn` learns from the provided input/targets samples and on
 trained brains into the file (default filename is `rpn.bin`)
 
 Inputs are read line-by-line, each line containing _input and target figures_, so that the number of input figures corresponds to the number of
-receptros in the configured topology and the number of target figures corresponds to the number or output neurons. The figures on the input line
+receptors in the configured topology and the number of target figures corresponds to the number or output neurons. The figures on the input line
 should be separated with blank space, optionally with `,` or `=` symbols
 (note: there's no semantical significance for separators, so they could be interchanged freely)
 
@@ -276,7 +277,7 @@ bash $ <<<"2e-5, 2e-5 " rpn -ur rpn.bin
 bash $ 
 ```
 
-But with the normalization turned off, it'll fail to find a soulution:
+But with the normalization turned off, it'll fail to find a solution:
 ```
 bash $ <<<"                            
 1e-5, 1e-5 = 10
@@ -317,7 +318,7 @@ A seed for randomization (weights initializing) is taken from the timer, though 
 the convergence with the same seed, which could be done using option `-s 1607022081931188`
 
 #
-option `-u` rounds up output result (in trained mode) to an integer, w/o it `rpn` willl dispay the resulting value (with the achieved accuracy):
+option `-u` rounds up output result (in trained mode) to an integer, w/o it `rpn` will display the resulting value (with the achieved accuracy):
 ```
 bash $ <<<"
 1e-5, 1e-5
@@ -456,5 +457,4 @@ via options `-g`, `-G`:
 > base of values M and N is the same as in debug output - it's all zero based, but the first neuron is always reserved) 
 
 option `-p N,M` allows pruning a single synapse at the neuron N for the (address of) neuron M
-
 
