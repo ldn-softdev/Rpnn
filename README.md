@@ -277,6 +277,7 @@ bash $
 ```
 
 But with the normalization turned off, it'll fail to find a soulution:
+```
 bash $ <<<"                            
 1e-5, 1e-5 = 10
 1e-5, 2e-5 = 20
