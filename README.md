@@ -41,7 +41,7 @@ usage: rpn [-dhu] [-G N,M] [-c cost_func] [-e target_err] [-f file_name] [-g N,M
            [epochs]
 
 Resilient Propagation Neural network
-Version 0.01 (built on Dec  3 2020), developed by Dmitry Lyssenko (ldn.softdev@gmail.com)
+Version 0.01 (built on Dec  4 2020), developed by Dmitry Lyssenko (ldn.softdev@gmail.com)
 
 optional arguments:
  -d             turn on debugs (multiple calls increase verbosity)
@@ -79,6 +79,7 @@ available logistic functions:
 - parameters N,M are zero based, the index 0 refers to a reserved neuron "the one"
 - factor for option -m is multiple of the total count of synapses (weights)
 
+bash $ 
 bash $ 
 ```
 
@@ -214,10 +215,10 @@ bash $ rpn -d
 .configure_rpn(), effectors: 1
 .configure_rpn(), output neurons: 1
 .configure_rpn(), target error: 0.001
-.configure_rpn(), normalize inputs: true
+.configure_rpn(), normalize inputs: true [-1 to 1]
 .configure_rpn(), LM trail size: 4
 .configure_rpn(), cost function: cf_Sse
-.configure_rpn(), randomizer seed: timer (1607022081931188)
+.configure_rpn(), randomizer seed: timer (1607090033445218)
 .configure_rpn(), epochs to run: 100000
 .run_convergence(), start reading training patterns...
 
@@ -241,7 +242,7 @@ function approximations/regressions) thus adjusting target error (to the higher 
 won't be required)
 
 ```
-.configure_rpn(), normalize inputs: true
+.configure_rpn(), normalize inputs: true -1.000000 to 1.000000
 ```
 \- Inputs normalization is on by default and could be turned off with option `-n 0,0`, or `-n 1,1` (any combination where `min` and `max` parameters
 are the same). Given that often the logistic functions are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's max and min
@@ -287,26 +288,26 @@ bash $ rpn -dd
 .configure_rpn(), effectors: 1
 .configure_rpn(), output neurons: 1
 .configure_rpn(), target error: 0.001
-.configure_rpn(), normalize inputs: true
+.configure_rpn(), normalize inputs: true [-1 to 1]
 .configure_rpn(), LM trail size: 4
 .configure_rpn(), cost function: cf_Sse
-.configure_rpn(), randomizer seed: timer (1607027167962425)
+.configure_rpn(), randomizer seed: timer (1607090056539971)
 .configure_rpn(), epochs to run: 100000
 ..configure_rpn(), class 'Rpnn'...
-   Rpnn::addr(): 0x7ffee2b85bb0
+   Rpnn::addr(): 0x7ffee229d710
    Rpnn::min_step(): 1e-06
-   Rpnn::max_step(): 10000
+   Rpnn::max_step(): 1000
    Rpnn::dw_factor(): 1.1618
    Rpnn::target_error_: 0.001
    Rpnn::cost_func(): "Sse"
-   Rpnn::wbp_: 0x7ffee2b85c88
+   Rpnn::wbp_: 0x7ffee229d7e8
    Rpnn::epoch_: 0
    Rpnn::terminate_: false
    Rpnn::effectors_start_idx(): 2
    Rpnn::output_neurons_start_idx(): 2
    Rpnn::neurons()[0]: class 'rpnnNeuron'...
-      neurons()[0]::addr(): 0x7f91fbc07170
-      neurons()[0]::host_nn_ptr(): 0x7ffee2b85bb0
+      neurons()[0]::addr(): 0x7ffa28407170
+      neurons()[0]::host_nn_ptr(): 0x7ffee229d710
       neurons()[0]::is_receptor(): true
       neurons()[0]::transfer_func(): "Sigmoid"
       neurons()[0]::out(): 1
@@ -316,8 +317,8 @@ bash $ rpn -dd
       neurons()[0]::inputs_ptr(): nullptr
       neurons()[0]::sum_: 0
    Rpnn::neurons()[1]: class 'rpnnNeuron'...
-      neurons()[1]::addr(): 0x7f91fbc06cf0
-      neurons()[1]::host_nn_ptr(): 0x7ffee2b85bb0
+      neurons()[1]::addr(): 0x7ffa28406cf0
+      neurons()[1]::host_nn_ptr(): 0x7ffee229d710
       neurons()[1]::is_receptor(): true
       neurons()[1]::transfer_func(): "Sigmoid"
       neurons()[1]::out(): 1
@@ -327,21 +328,21 @@ bash $ rpn -dd
       neurons()[1]::inputs_ptr(): nullptr
       neurons()[1]::sum_: 0
    Rpnn::neurons()[2]: class 'rpnnNeuron'...
-      neurons()[2]::addr(): 0x7f91fbc06d70
-      neurons()[2]::host_nn_ptr(): 0x7ffee2b85bb0
+      neurons()[2]::addr(): 0x7ffa28406d70
+      neurons()[2]::host_nn_ptr(): 0x7ffee229d710
       neurons()[2]::is_receptor(): false
       neurons()[2]::transfer_func(): "Sigmoid"
       neurons()[2]::out(): 1
       neurons()[2]::delta(): 0
       neurons()[2]::bp_err(): 0
-      neurons()[2]::synapses()[0]: rpnnSynapse.. host_nn_ptr():0x7ffee2b85bb0, linked_neuron_ptr():0x7f91fbc07170, weight():2.23001e-314, delta_weight():2.23003e-314, gradient():2.23003e-314, prior_gradient():0
-      neurons()[2]::synapses()[1]: rpnnSynapse.. host_nn_ptr():0x7ffee2b85bb0, linked_neuron_ptr():0x7f91fbc06cf0, weight():2.23003e-314, delta_weight():2.23003e-314, gradient():2, prior_gradient():0
+      neurons()[2]::synapses()[0]: rpnnSynapse.. host_nn_ptr():0x7ffee229d710, linked_neuron_ptr():0x7ffa28407170, weight():2.23461e-314, delta_weight():2.23464e-314, gradient():2.23464e-314, prior_gradient():0
+      neurons()[2]::synapses()[1]: rpnnSynapse.. host_nn_ptr():0x7ffee229d710, linked_neuron_ptr():0x7ffa28406cf0, weight():2.23464e-314, delta_weight():2.23464e-314, gradient():1.72723e-77, prior_gradient():0
       neurons()[2]::inputs_ptr(): nullptr
       neurons()[2]::sum_: 0
    Rpnn::input_sets_: []
-   Rpnn::nis_[0]: Norm.. found_min():6.95327e-310, found_max():1.38833e-309, base():-1, range():2
+   Rpnn::input_normalization()[0]: Norm.. found_min():2.23462e-314, found_max():1, base():-1, range():2
    Rpnn::target_sets_: []
-   Rpnn::nts_: []
+   Rpnn::target_normalization(): []
    Rpnn::output_errors_[0]: 0
    Rpnn::lm_detector(): fifoDeque.. capacity():4, fifo():[]
 .run_convergence(), start reading training patterns...
@@ -386,3 +387,20 @@ bash $ <<<"
 Rpnn has converged at epoch 97363 with error: 0.000343371
 bash $ 
 ```
+
+#### Growing synapses
+If full-mesh connectivity between neuron layers is not enough and you want to add more (typically recursive links), then it's possible to do it via options `-g`, `-G`:
+
+- `-g N,M` allows adding a single synapse for neurons N to M's output (i.e., a connection from M to N considering forward signal flow)
+- `-G N,M` this will ensure that between neurons N and M all recursive synapses added
+> base of values M and N is the same as in debug output - it's all zero based, but the first neuron is always reserved) 
+
+
+#### Prunning synapses
+option `-p N,M`allows pruning a synapse at the neuron N for the (address of) neuron M
+  
+
+
+
+
+
