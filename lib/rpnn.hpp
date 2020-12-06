@@ -987,14 +987,15 @@ void Rpnn::converge(size_t epochs) {
   DBG(4) DOUT() << "dump while converging: " << *this << std::endl;
 
   double global_err = global_error();
+  if(stop_on_nan() and isnan(global_err))
+   throw EXP(Rpnn::stopped_on_nan_error);
+
   if(global_err < target_error() or epoch_ >= epochs) {         // provisioning for LM finder class
    if(wbp_->finish_upon_convergence()) break;
    DBG(0) DOUT() << "re-bouncing, epoch " << epoch_ << ", error: " << global_err
                  << ", target error: " << target_error() << std::endl;
    bounce_weights();                                             // to change target error possibly
   }
-  if(stop_on_nan() and isnan(global_err))
-   throw EXP(Rpnn::stopped_on_nan_error);
 
   if(lm_detection() > 0 and is_lm_detected_(global_err))        // provisioning for LM finder class
    if(terminate_) break;                                        // could have been setup by bounce
