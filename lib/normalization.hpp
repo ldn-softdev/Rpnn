@@ -216,8 +216,10 @@ class Norm {
                          if(nr_ <= 0.) throw EXP(Norm::Norm_range_negative);
                          return *this;
                         }
-    double              normalize(double x) const
-                         { return (x - base_) / range_ * nr_ + nb_; }
+    double              normalize(double x) const {
+                         if(range_ == 0) return nb_;
+                         return (x - base_) / range_ * nr_ + nb_;
+                        }
     double              denormalize(double x) const
                          { return (x - nb_) / nr_ * range_ + base_; }
     double              found_min(void) const

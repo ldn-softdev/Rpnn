@@ -32,8 +32,8 @@
 #define RPNN_DW_FACTOR  1.1618034
 #define RPNN_BASE -1.0
 #define RPNN_RANGE 2.0
-#define RPNN_LMD_PCNT1 0.15                                     // detecting similar pattern
-#define RPNN_LMD_PCNT2 0.0001                                   // detect similar values
+#define RPNN_LMD_PTRN 0.15                                     // detecting similar patterns
+#define RPNN_LMD_SIMV 0.0001                                   // detect similar values
 
 
 
@@ -519,7 +519,8 @@ class Rpnn {
     OUTABLE(Rpnn, addr(), min_step(), max_step(), dw_factor(), target_error_,
                   cost_func(), wbp_, epoch_, terminate_,
                   effectors_start_idx(), output_neurons_start_idx(), neurons(),
-                  input_sets_, nis_, target_sets_, nts_, output_errors_, lm_detector())
+                  input_sets_, input_normalization(), target_sets_, target_normalization(),
+                  output_errors_, lm_detector())
     // Below definitions are for OUTABLE interface only
     const Rpnn *        addr(void) const
                          { return this; }
@@ -540,6 +541,10 @@ class Rpnn {
                          if(ci >= cf_vec_.size()) return "user's function";
                          return ENUMS(costFunc, ci);
                         }
+const std::vector<Norm>&input_normalization(void) const
+                         { return nis_; }
+const std::vector<Norm>&target_normalization(void) const
+                         { return nts_; }
 
     DEBUGGABLE()
     EXCEPTIONS(ThrowReason)
@@ -1064,11 +1069,11 @@ bool Rpnn::is_lm_detected_(double err) {
       hh < et.capacity();
       ++tt, ++th, ++ht, ++hh) {
    // if |dt-dh / dh| > LMD% then no looping
-   if(et[tt] != 0. and fabs((et[tt] - et[ht]) / et[tt]) >= RPNN_LMD_PCNT2)
+   if(et[tt] != 0. and fabs((et[tt] - et[ht]) / et[tt]) >= RPNN_LMD_SIMV)
     sim_value &= false;
-   if(fabs(((et[th] - et[tt]) - (et[hh] - et[ht])) / (et[hh] - et[ht])) >= RPNN_LMD_PCNT1) {
+   if(fabs(((et[th] - et[tt]) - (et[hh] - et[ht])) / (et[hh] - et[ht])) >= RPNN_LMD_PTRN) {
     if(sim_value == false)
-     return false;                        // not looping
+     return false;                                              // not looping
    }
   }
   return true;

@@ -193,9 +193,14 @@ void configure_rpn(Rpnn &rpn, Getopt &opt) {
 
  // input normalization
  vector<double> norm = str_to_num(opt[CHR(OPT_INN)].str(), 2);
- if(norm.front() != norm.back())
+ stringstream ss;
+ if(norm.front() != norm.back()) {
   rpn.normalize(norm.front(), norm.back());
- DBG(0) DOUT() << std::boolalpha << "normalize inputs: " << rpn.normalizing() << endl;
+  if(rpn.normalizing())
+   ss << " [" << rpn.input_normalization().front().base() << " to " << std::showpos
+      << rpn.input_normalization().front().base()+rpn.input_normalization().front().range() << "]";
+ }
+ DBG(0) DOUT() << std::boolalpha << "normalize inputs: " << rpn.normalizing() << ss.str() << endl;
 
  // local minimum detection
  rpn.lm_detection(stoul(opt[CHR(OPT_LMF)].str()) * rpn.synapses_count());
@@ -298,7 +303,7 @@ void run_convergence(Rpnn &rpn, Getopt &opt) {
       << " with error: " << rpn.global_error() << endl;
 
  ofstream file(opt[CHR(OPT_DMP)].str(), ios::binary);
- file << noskipws << Blob(rpn);
+ file << noskipws << Blob(rpn);                                 // dump NN to file
 
  DBG(0) DOUT() << "dumped rpn brains into file: " << opt[CHR(OPT_DMP)].str() << endl;
 }
@@ -310,8 +315,9 @@ void run_preserved(Rpnn &rpn, Getopt &opt) {
  DEBUGGABLE()
 
  Blob b(istream_iterator<char>(ifstream{opt[CHR(OPT_RDF)].str(), ios::binary}>>noskipws),
-        istream_iterator<char>{});
- b.restore(rpn);
+        istream_iterator<char>{});                          // read NN from file to blob
+ b.restore(rpn);                                            // de-serialize blob into rpn
+
  DBG(0) DOUT() << "reinstated rpn brains from file: " << opt[CHR(OPT_RDF)].str() << endl;
  DBG(1) DOUT() << rpn << endl;
 
@@ -319,7 +325,7 @@ void run_preserved(Rpnn &rpn, Getopt &opt) {
  size_t ip = distance(++rpn.neurons().begin(), rpn.effectors());// number of receptors
  vector<double> inputs;
  inputs.reserve(ip);
- 
+
  string str;
  while(getline(cin, str)) {
   str = regex_replace(str, std::regex{R"([\s,]+)"}, " ");
