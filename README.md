@@ -38,18 +38,22 @@ a number of advantages over the standard backprop mechanism:
 This package provides a simple unix cli tool which allows running `Rpnn` from shell and toying with your data easily:
 ```
 bash $ rpn -h
-usage: rpn [-dhu] [-G N,M] [-c cost_func] [-e target_err] [-f file_name] [-g N,M] [-l transfer]
-           [-m factor] [-n min,max] [-o transfer] [-p N,M] [-r file_name] [-s seed] [-t perceptrons]
-           [epochs]
+usage: rpn [-adhu] [-G N,M] [-P param] [-S separators] [-b threads] [-c cost_func] [-e target_err]
+           [-f file_name] [-g N,M] [-l transfer] [-m factor] [-n min,max] [-o transfer] [-p N,M]
+           [-r file_name] [-s seed] [-t perceptrons] [epochs]
 
-Resilient Propagation Neural network
-Version 0.01 (built on Dec  4 2020), developed by Dmitry Lyssenko (ldn.softdev@gmail.com)
+Resilient Propagation Neural network (https://github.com/ldn-softdev/Rpnn)
+Version 1.02 (built on Jan  5 2021), developed by Dmitry Lyssenko (ldn.softdev@gmail.com)
 
 optional arguments:
+ -a             plug in a uniform bouncer (alternative to randomizer)
  -d             turn on debugs (multiple calls increase verbosity)
  -h             help screen
  -u             round up outputs to integer values
  -G N,M         recursively interconnect neurons N to M
+ -P param       modify generic parameters (PARAM=x,y,..)
+ -S separators  value separators (REGEX) [default: \s,;=]
+ -b threads     best local minimum search (0: #threads equals #cores)
  -c cost_func   cost function [default: Sse]
  -e target_err  convergence target error [default: 0.001]
  -f file_name   file to dump Rpnn brain to [default: rpn.bin]
@@ -66,21 +70,31 @@ optional arguments:
 standalone arguments:
   epochs        epochs to run convergence [default: 100000]
 
-available cost functions:
-	o Sse
+ - parameters N,M are zero based, the index 0 refers to a reserved neuron "the one"
+ - factor for option -m is multiple of the total count of synapses (weights)
+
+ available cost functions:
+ 	o Sse
 	o Xntropy
 
-available logistic functions:
-	o Sigmoid
+ available logistic functions:
+ 	o Sigmoid
 	o Tanh
 	o Tanhfast
 	o Relu
 	o Softplus
 	o Softmax
 
-- parameters N,M are zero based, the index 0 refers to a reserved neuron "the one"
-- factor for option -m is multiple of the total count of synapses (weights)
+ generic Rpnn parameters (alterable with -P):
+ 	o BLM_RDCE [5]
+	o DW_FACTOR [1.1618]
+	o LMD_PTRN [0.001]
+	o MAX_STEP [1000]
+	o MIN_STEP [1e-06]
+	o NRM_MAX [1]
+	o NRM_MIN [-1]
 
+ for further details refer to https://github.com/ldn-softdev/Rpnn
 bash $ 
 ```
 
