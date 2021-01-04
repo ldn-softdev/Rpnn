@@ -59,6 +59,7 @@ using namespace std;
 #define OPT_RUP u                                           // round up outputs
 #define OPT_GSR G                                           // grow synapses recursively
 #define OPT_GPM P                                           // generic parameters
+#define OPT_SPR S                                           // values separator while reading cin
 
 #define XSTR(X) #X
 #define STR(X) XSTR(X)
@@ -162,7 +163,7 @@ class Rpn: public Rpnn {
     Getopt *            opt_;
     vector<TwoWayConversion>
                         cnv_;
-
+    string              sep_;                                   // value REGEX separators
 
     // map of predefined cost functions
     map<const char*, void*>
@@ -223,6 +224,7 @@ int main(int argc, char* argv[]) {
  opt[CHR(OPT_RDF)].desc("file to reinstate Rpnn brain from").bind("rpn.bin").name("file_name");
  opt[CHR(OPT_SED)].desc("seed for randomizer (0: auto)").bind("0").name("seed");
  opt[CHR(OPT_RUP)].desc("round up outputs to integer values");
+ opt[CHR(OPT_SPR)].desc("value separators (REGEX)").bind(R"(\s,;=)").name("separators");
  opt[CHR(OPT_GPM)].desc("modify generic parameters (PARAM=x,y,..)").name("param");
  opt[0].desc("epochs to run convergence").name("epochs").bind("100000");
 
@@ -410,6 +412,8 @@ Rpn & Rpn::configure(void) {
                << (my_seed == 0?
                    "timer (" + to_string(bouncer().seed()) + ")": to_string(my_seed)) << endl;
 
+ //setup separators
+ sep_ = opt()[CHR(OPT_SPR)].str();
 
  DBG(0) DOUT() << "epochs to run: " << stoul(opt()[0].str()) << endl;
 
@@ -446,7 +450,7 @@ Rpn & Rpn::resolve(void) {
        << epoch() << " with error: " << global_error() << endl;
 
  ofstream file(opt()[CHR(OPT_DMP)].str(), ios::binary);
- file << noskipws << Blob(blm_, *this, cnv_);                   // dump NN to file
+ file << noskipws << Blob(blm_, *this, cnv_, sep_);             // dump NN to file
 
  DBG(0) DOUT() << "dumped rpn brains into file: " << opt()[CHR(OPT_DMP)].str() << endl;
  return *this;
@@ -469,7 +473,7 @@ bool Rpn::read_patterns_(vvDouble &ip, vvDouble &tp) {
 
  string str, dbgstr;
  while(getline(cin, str)) {
-  str = regex_replace(str, std::regex{R"([\s,;=]+)"}, " ");
+  str = regex_replace(str, std::regex{"[" + sep_ + "]+"}, " ");
   str = regex_replace(str, std::regex{R"(^ +)"}, "");
   if(str.empty()) continue;
   if(DBG()(0)) dbgstr = str;                                   // for later dbg output
@@ -505,8 +509,8 @@ Rpn & Rpn::run(void) {
  // read-restore rpn from file and activate its inputs
 
  Blob b(istream_iterator<char>(ifstream{opt()[CHR(OPT_RDF)].str(), ios::binary}>>noskipws),
-        istream_iterator<char>{});                              // read NN from file to blob
- b.restore(blm_, *this, cnv_);                                  // de-serialize blob into rpn
+        istream_iterator<char>{});                              // read from file to blob
+ b.restore(blm_, *this, cnv_, sep_);                            // de-serialize blob
 
  for(auto &c: cnv_) c.roundup(opt()[CHR(OPT_RUP)].hits() > 0);
 
