@@ -473,7 +473,7 @@ class Debug {
     Debug &             filter_out(bool x) { ft_ = x; return *this; }
     Debug &             filter(const char *s) { filter_.push_back(s); return *this; }
     Debug &             reset_filter(void) { filter_.clear(); filter_out(false); return *this; }
-    std::mutex &        mutex(void) const { return Debug::mtx_; }
+    std::mutex &        mutex(void) const { return *Debug::mp_; }
     Debug &             mutex(std::mutex & mtx) { mp_ = &mtx; return *this; }
     Debug &             reset_mutex(void) { mp_ = &mtx_; return *this; }
     std::ostream &      dout(void) const { return dos_; }

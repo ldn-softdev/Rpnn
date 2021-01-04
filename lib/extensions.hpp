@@ -358,7 +358,7 @@ class __Guard_X__ {
  *
  * Synopsis:
  * class my_class {
- *  friend COPY(my_class, a_, b_, c_)
+ *  COPY(my_class, a_, b_, c_)
  *                      my_class(const my_class &rhs)  {        // CC
  *                       copy(*this, rhs);
  *                       ...

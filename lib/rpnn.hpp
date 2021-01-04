@@ -2,8 +2,87 @@
  *  rpnn.hpp
  *
  *  Created by Dmitry Lyssenko
- *  Rpnn - Resilient Propagation with Local Minima detection.
+ *  Rpnn - Resilient Propagation with Local Minimum trap detection.
  *
+ *
+ *  Rpnn class is based on 2 other sub classes:
+ *  rpnnNeuron, which represent neuron itself, and which in turn is hosting a set of
+ *  rpnnSynapse representing neuron's synapses
+ *  - The class implementation in non-orthodox: instead of matrix representation of neurons and
+ *    weights,  rpnnNeuron and rpnnSynapse objects hold the respective data structures.
+ *
+ *
+ * SYNOPSIS:
+ *  // configure NN to learn XOR, AND and OR from input pattern:
+ *
+ *
+ *  Rpnn nn;                            // declaration; class does not have "move" semantic (yet)
+ *
+ *  nn.full_mesh(2, 2, 3)               // begin with building topology
+ *     // enumerate as many layers of neurons as required:
+ *     //   o the first layer is a layer of receptors (non-functional neurons) - 2 input channels
+ *     //   o the last layer is the layer of output neurons - per each of functions (XOR, AND, OR)
+ *     //   o all layers get interconnected (with synapses) in a full mesh fashion
+ *
+ *    .target_error(0.001)              // assign a target error (default is 0.01)
+ *    .lm_detection(nn.synapse_count() * 3)
+ *     // LM detection is optional, but it improves chances for conversion drastically
+ *     // - by detecting early the LM trap and bouncing nn weights out of the trap valley;
+ *     // the argument is the size of the error trail being tracked for LM detection:
+ *     // too short trail won't detect LM, while too long will slow down the NN conversion,
+ *     // advisable approach: factor the number of all synapses
+ *
+ *    .load_patterns({{0,0,1,1}, {0,1,0,1}},            // input patterns
+ *                   {{0,1,1,0}, {0,0,0,1}, {0,1,1,1}}) // output (target) patterns: XOR,AND,OR
+ *    .converge(10000);                                 // let NN find a solution
+ *
+ * If solution is found, i.e., nn.global_error() <= nn.target_error(), then it becomes possible
+ * to activate the NN with desired inputs and get the output result,
+ * - there are two ways how the NN can be activated:
+ *   1. activate existing pattern and read the output
+ *   2. load up the new data directly into the receptors and activate the NN
+ *   3. activate with explicit input pattern
+ *
+ * 1/ to activate the existing (loaded) pattern (say, pattern #3) and output the result:
+ *  std::cout << "input pattern 3, for OR: "
+ *            << nn.activate(3).out(2)  // activated pattern #3 and output neuron trained for OR
+ *            << std::endl;
+ *
+ * 2/ to do the same via loading inputs directly into the receptors:
+ *  nn.neuron(1).load(1);               // receptors begin from index 1
+ *  nn.neuron(2).load(0);
+ *      // alternatively it could be done like this:
+ *      // auto ri = nn.receptors_itr();
+ *      // for(auto v: {1, 0}) ri++->load(v);
+ *  std::cout << "input pattern: 1, 0, for XOR: "
+ *            << nn.activate().out()    // activate from data directly loaded into receptors
+ *            << std::endl;
+ *
+ * 3/ same as 2/, but pattern is passed directly to activate:
+ *  std::cout << "input pattern: 1, 0, for XOR: "
+ *            << nn.activate({1, 0}).out()  // loading into receptors is done by activate
+ *            << std::endl;
+ *
+ * There are few more methods useful for NN configuration:
+ *      - stop_on_nan   instruct to stop convergence if global_error() computes to NaN - that
+ *                      would indicate some issues with the NN configuration
+ *      - lm_detector   returns error trail container (could be used in bouncer class)
+ *      - lm_detection  returns size of the error trail container, 0 size disables LM detection
+ *      - load_patterns allows loading input patterns, or both input and target patterns
+ *                      target patterns always get copied and normalized into the Rpnn, while
+ *                      input patterns will be copied if:
+ *                          a) input is given as r-value reference, or
+ *                          b) normalization is engaged
+ *      - normalizing   returns true if input normalization is engaged
+ *      - normalize     engages input normalization, default range (arguments) is {-1, +1}
+ *      - cost_function allows plugging and getting address of the cost function
+ *      - bouncer       allows plugging and getting access to the bouncer class
+ *                      (see description of the bouncer class)
+ *      - gpm           set/read/access global parameters
+ *                      implemented as std::map<std::string, double>)
+ *
+ *
+ *  For other access methods (which are trivial), see the code
  *
  */
 
@@ -12,28 +91,45 @@
 #pragma once
 
 #include <vector>
+#include <map>
 #include <list>
 #include <math.h>
 #include <random>
 #include <chrono>
 #include <limits>
+#include <functional>
 #include "normalization.hpp"
 #include "extensions.hpp"
 #include "Blob.hpp"
 #include "Outable.hpp"
 #include "FifoDeque.hpp"
 #include "dbg.hpp"
+#include "ThreadMaster.hpp"
 
 
 #define SIZE_T(N) static_cast<size_t>(N)
+#define XSTR(X) #X
+#define STR(X) XSTR(X)
+#define XCHR(X) *#X
+#define CHR(X) XCHR(X)
 
-#define RPNN_MIN_STEP   1.e-6
-#define RPNN_MAX_STEP   1.e+3
-#define RPNN_DW_FACTOR  1.1618034
-#define RPNN_BASE -1.0
-#define RPNN_RANGE 2.0
-#define RPNN_LMD_PTRN 0.15                                     // detecting similar patterns
-#define RPNN_LMD_SIMV 0.0001                                   // detect similar values
+
+#define RPNN_MIN_STEP   1.e-6                                   // min step for dw update
+#define RPNN_MAX_STEP   1.e+3                                   // max step for dw update
+#define RPNN_DW_FACTOR  1.1618034                               // dw increment/decrement factor
+#define RPNN_NRM_MIN -1.0                                       // min for normalized data
+#define RPNN_NRM_MAX +1.0                                       // (+min) max for normalized data
+#define RPNN_LMD_PTRN 0.001                                     // detector of similar patterns
+#define RPNN_BLM_RDCE 5.                                        // reduce factor ]1 .. N
+
+#define GENPARAMS \
+            BLM_RDCE, \
+            DW_FACTOR, \
+            LMD_PTRN, \
+            MAX_STEP, \
+            MIN_STEP, \
+            NRM_MAX, \
+            NRM_MIN
 
 
 
@@ -71,16 +167,16 @@ class rpnnSynapse {
                          { return pg_; }
 
     // synapse methods
-    void                linkup_neuron(rpnnNeuron & n)
-                         { lpn_ = &n; }
+    rpnnSynapse &       linkup_neuron(rpnnNeuron & n)
+                         { lpn_ = &n; return *this; }
     rpnnNeuron &        linked_neuron(void)
                          { return *lpn_; }
     double              scan_input(size_t p = 0) const;         // linked Neuron output P x weight
     void                commit_weight(void);
     void                backpropagate_error(double nd);
     void                compute_gradient(double nd, size_t p);  // computed by Rpnn during training
-    void                nn(Rpnn & nn)
-                         { nnp_ = &nn; }
+    rpnnSynapse &       nn(Rpnn & nn)
+                         { nnp_ = &nn; return *this; }
     Rpnn &              nn(void)                                // required in commit_weight()
                          { return *nnp_; }
     const Rpnn &        nn(void) const
@@ -120,6 +216,23 @@ class rpnnSynapse {
 
 
 class rpnnNeuron {
+ // Class facilitating neuron, following methods would be useful when accessing
+ // this class from the Rpnn:
+ //
+ //   out()               read output of the neuron
+ //   out(p)              read pattern p from the receptor, otherwise (if effector) same as out()
+ //   load(v)             load value v into the receptor
+ //   is_receptor()       true/false if receptor/effectors
+ //   is_effector()       reverse of is_receptor()
+ //   input_pattern()     access attached container of input patterns (for a receptor)
+ //   linkup_synapse(n)   grow a new synapse and attach it to the neuron n (by address)
+ //   grow_synapses(..)   grow new synapse(s) and attach to the neuron(s) by index
+ //   prune_synapses(..)  prune synapses to neuron(s) by neuron index(es)
+ //   transfer_function() plugin and get address of a logistic functions
+ //
+ // other methods (though public) are used by the NN (made public for UT) they are not useful
+ // for user
+
  public:
 
     using vDouble = std::vector<double>;
@@ -168,7 +281,7 @@ class rpnnNeuron {
                          { return is_; }
     void                input_pattern(const vDouble &x)
                          { is_ = &x; }
-    void                cutoff_input_pattern(void)
+    void                detach_input_pattern(void)
                          { is_ = nullptr; }
     // synapses access
     vSynapse &          synapses(void)
@@ -183,10 +296,10 @@ class rpnnNeuron {
     template<typename... Args>
     void                grow_synapses(size_t first, Args... rest)
                          { grow_synapses(first); grow_synapses(rest...); }
-    void                decay_synapses(size_t n);                // n - linked neuron n in topology
+    void                prune_synapses(size_t n);                // n - linked neuron n in topology
     template<typename... Args>
-    void                decay_synapses(size_t first, Args... rest)
-                         { decay_synapses(first); decay_synapses(rest...); }
+    void                prune_synapses(size_t first, Args... rest)
+                         { prune_synapses(first); prune_synapses(rest...); }
     rpnnNeuron &        resize(size_t x) {                      // resize synapses count
                          synapses().resize(x);
                          for(auto &s: synapses()) s.nn(nn());
@@ -252,7 +365,7 @@ class rpnnNeuron {
     double              transfer_delta_(double x);
 
     // data
-    t_func *            tf_{rpnnNeuron::tf_Sigmoid};            // pointer to a default transf.func.
+    t_func *            tf_{rpnnNeuron::tf_Sigmoid};            // pointer to a default trans.func.
     Rpnn *              nnp_{nullptr};
     const vDouble *     is_{nullptr};                           // input source of patterns
 
@@ -271,7 +384,7 @@ class rpnnNeuron {
     double              sum_;                                   // sum of synapses scan (tmp value)
     // provide mapping for all predefined transfer functions (used in debugs only)
     #define XMACRO(X)   tf_ ## X,
-   std::vector<t_func*> tf_vec_{ XMACRO_FOR_EACH(RPNN_TFUNC) };
+    std::vector<t_func*>tf_vec_{ XMACRO_FOR_EACH(RPNN_TFUNC) };
     #undef XMACRO
 
 };
@@ -282,7 +395,27 @@ STRINGIFY(rpnnNeuron::tFunc, RPNN_TFUNC)
 
 
 
-
+/* class rpnnBouncer facilitate weight bouncing (scattering) for entire nn
+ *
+ * the class designed in such a way, so that it's possible to build on top of it
+ * (by creating a child class), as well as replacing weight scattering function (weight_updater)
+ *
+ * virtual methods:
+ *      bounce()            calling the underlying method (native or plugged) to scatter NN weights
+ *                          native method uses std::mt19937_64 randomizer to update weights
+ *      reset()             this method is called from within Rpnn::converge() right before
+ *                          actual convergence begins
+ *
+ * Other methods:
+ *      seed()              access/setup for custom seed for the randomizer
+ *      rnd()               access to std::mt19937_64
+ *      base(), range()     min (base) and max (base + range) parameters for weigh scattering
+ *      base_range()        same as base(), range() in one call
+ *      finish_upon_lmd()   access to flag for Rpnn, blmFinder classes, no usage in this class
+ *                          if flag is set to true, then upon LM detection Rpnn stops convergence
+ *      nn()                provides back pointer to a hosting Rpnn class object
+ *      weight_updater()    setup methods/function/functor facilitating actual weight scattering
+ */
 class rpnnBouncer {
  // neuron weight randomizer class
  public:
@@ -290,41 +423,55 @@ class rpnnBouncer {
                          seed_ = std::chrono::system_clock::now().time_since_epoch().count();
                          rnd_.seed(seed_);
                         }
-                        rpnnBouncer(Rpnn *nn): rpnnBouncer()
-                         { nnp_ = nn; }
+                        rpnnBouncer(Rpnn *rpnn): rpnnBouncer()
+                         { nn(*rpnn); }
     virtual            ~rpnnBouncer(void) = default;
 
     size_t              seed(void) const
                          { return seed_; }
     void                seed(size_t x)
                          { rnd_.seed(x); }
-    virtual void        bounce(void);
+    virtual void        bounce(void)
+                         { b_(this); }
+    virtual void        reset(void)                             // rpnnBouncer has no reset
+                         { }
+    std::mt19937_64 &   rnd(void)
+                         { return rnd_; }
     double              base(void) const
                          { return base_; }
     double              range(void) const
                           { return range_; }
     void                base_range(double b, double r)
                          { base_ = b; range_ = r; }
+    bool                finish_upon_lmd(void) const
+                         { return ful_; }
+    rpnnBouncer &       finish_upon_lmd(bool x)
+                         { ful_ = x; return *this; }
     Rpnn &              nn(void) const
                          { return *nnp_; }
+    rpnnBouncer &       nn(Rpnn & n);
+    const std::function<void(rpnnBouncer*)> &
+                        weight_updater(void) const
+                         { return b_; }
+    rpnnBouncer &       weight_updater(const std::function<void(rpnnBouncer*)> &wb)
+                         { b_ = wb; return *this; }
 
-    bool                finish_upon_convergence(void) const
-                         { return fuc_; }
-    void                finish_upon_convergence(bool x)
-                         { fuc_ = x; }
-
-    SERDES(rpnnBouncer, nnp_, range_, base_, fuc_, seed_)
+    SERDES(rpnnBouncer, nnp_, range_, base_, ful_, seed_)
     OUTABLE(rpnnBouncer, &nn(), base(), range())
+    DEBUGGABLE()
 
  protected:
-
+    std::function<void(rpnnBouncer*)>
+                        b_{default_bouncer_};                   // default bouncer
     Rpnn *              nnp_{nullptr};
-    double              range_{RPNN_RANGE};
-    double              base_{RPNN_BASE};
-    bool                fuc_{ true };                           // finish upon convergence
+    double              base_{RPNN_NRM_MIN};
+    double              range_{RPNN_NRM_MAX - RPNN_NRM_MIN};
+    bool                ful_{ false };                          // finish upon lm detection
     std::mt19937_64     rnd_;
 
  private:
+    static void         default_bouncer_(rpnnBouncer *);
+
     size_t              seed_;                                  // storing only for tracking
 };
 
@@ -353,7 +500,9 @@ class Rpnn {
                 receptors_misconfigured, \
                 output_neurons_undefined, \
                 output_config_inconsistent, \
-                stopped_on_nan_error
+                stopped_on_nan_error, \
+                blm_bad_thread_count, \
+                inconsistent_synapse_map
     ENUMSTR(ThrowReason, THROWREASON)
 
     #define RPNN_COSTFUNC \
@@ -366,16 +515,28 @@ class Rpnn {
     XMACRO_FOR_EACH(RPNN_COSTFUNC)
     #undef XMACRO
 
-                        Rpnn(void) = default;
+                        Rpnn(void) = default;                   // DC
+                        Rpnn(const Rpnn &);                     // CC
+                        Rpnn(Rpnn &&) = delete;                 // MC
+
+
 
     // access methods
-    size_t              synapses_count(void) const {
+    size_t              synapse_count(void) const {
                          size_t sum = 0;
-                         for(auto ei = effectors(); ei != neurons().end(); ei++)
+                         for(auto ei = effectors_itr(); ei != neurons().end(); ei++)
                           sum += ei->synapses().size();
                          return sum ;
                         }
-
+    size_t              receptors_count(void) const {
+                         return SIZE_T(std::distance(receptors_itr(), effectors_itr()));
+                        }
+    size_t              effectors_count(void) const {
+                         return SIZE_T(std::distance(effectors_itr(), neurons().end()));
+                        }
+    size_t              output_neurons_count(void) const {
+                         return SIZE_T(std::distance(output_neurons_itr(), neurons().end()));
+                        }
     lNeuron &           neurons(void)
                          { return neurons_; }
     const lNeuron &     neurons(void) const
@@ -387,9 +548,17 @@ class Rpnn {
                          std::advance(it, i);
                          return *it;
                         }
-    lNeuron::iterator   effectors(void) const
+lNeuron::const_iterator receptors_itr(void) const
+                         { return ++neurons().begin(); }
+    lNeuron::iterator   receptors_itr(void)
+                         { return ++neurons().begin(); }
+lNeuron::const_iterator effectors_itr(void) const
                          { return effectors_; }
-    lNeuron::iterator   output_neurons(void) const
+    lNeuron::iterator   effectors_itr(void)
+                         { return effectors_; }
+lNeuron::const_iterator output_neurons_itr(void) const
+                         { return output_neurons_; }
+    lNeuron::iterator   output_neurons_itr(void)
                          { return output_neurons_; }
 
     vvDouble &          input_patterns(void)
@@ -409,10 +578,10 @@ class Rpnn {
                          { return target_error_; }
     Rpnn &              target_error(double x)
                          { target_error_ = x; return *this; }
-    double              global_error(void) const {             // average for all output neurons
+    double              global_error(void) const {              // average for all output neurons
                          double sum = 0;
                          for(auto e: output_errors()) sum += e;
-                         return sum / output_errors().size();
+                         return sum / output_errors().size() / 2.;
                         }
     bool                stop_on_nan(void) const                 // stop if error turns Nan
                         { return stop_on_nan_; }
@@ -429,22 +598,24 @@ class Rpnn {
 
     size_t              epoch(void) const
                          { return epoch_; }
+    Rpnn &              epoch(size_t x)
+                         { epoch_ = x; return *this; }
     double              min_step(void) const
-                         { return min_step_; }
+                         { return MIN_STEP_; }
     Rpnn &              min_step(double x)
-                         { min_step_ = x; return *this; }
+                         { MIN_STEP_ = x; return *this; }
     double              max_step(void) const
-                         { return max_step_; }
+                         { return MAX_STEP_; }
     Rpnn &              max_step(double x)
-                         { max_step_ = x; return *this; }
+                         { MAX_STEP_ = x; return *this; }
     double              dw_factor(void) const
-                         { return dw_factor_; }
+                         { return DW_FACTOR_; }
     Rpnn &              dw_factor(double x)
-                         { dw_factor_ = x; return *this; }
+                         { DW_FACTOR_ = x; return *this; }
 
 
     // configuration methods
-    Rpnn &              resize(size_t x) {                      // number of neurons in topology
+    Rpnn &              resize(size_t x) {                      // x: number of neurons in topology
                          neurons().resize(x);
                          for(auto &n: neurons()) n.nn(this);
                          output_neurons_ = effectors_ = nend_;
@@ -461,8 +632,8 @@ class Rpnn {
                          full_mesh(perceptrons);
                          return *this;
                         }
-    Rpnn &              load_patterns(const vvDouble & ip, const vvDouble & tp);
-    Rpnn &              load_patterns(vvDouble && ip, const vvDouble & tp);
+    Rpnn &              load_patterns(const vvDouble & ip, const vvDouble & tp = dummy_ts_);
+    Rpnn &              load_patterns(vvDouble && ip, const vvDouble & tp = dummy_ts_);
 
     // training methods
     double              out(size_t n = 0) const  {              // user function to read results
@@ -480,19 +651,19 @@ class Rpnn {
     Rpnn &              normalize(double min = -1., double max = 1.)
                          { nis_.resize(1, Norm(min, max - min)); return *this; }
     Rpnn &              activate(size_t p) {
-                         for(auto ei = effectors(); ei != neurons().end(); ei++)
+                         for(auto ei = effectors_itr(); ei != neurons().end(); ei++)
                           ei->activate(p);
                          return *this;
                         }
     Rpnn &              activate(void) {                        // directly loaded into receptors
-                         for(auto ri = ++neurons().begin(); ri != effectors(); ++ri)
+                         for(auto ri = ++neurons().begin(); ri != effectors_itr(); ++ri)
                           if(ri->input_pattern() == nullptr) break;
-                          else ri->cutoff_input_pattern();
+                          else ri->detach_input_pattern();
                          return activate(0);
                         }
     Rpnn &              activate(const std::vector<double> &inputs) {
                          auto ii = inputs.begin();              // load inputs into receptors
-                         for(auto ri = ++neurons().begin(); ri != effectors(); ++ri, ++ii)
+                         for(auto ri = ++neurons().begin(); ri != effectors_itr(); ++ri, ++ii)
                           if(ii == inputs.end()) throw EXP(Rpnn::insufficient_inputs);
                           else ri->load(*ii);
                          return activate();
@@ -503,18 +674,35 @@ class Rpnn {
     c_func *            cost_function(void) const
                          { return cf_; }
 
-    void                bounce_weights(void) const
-                         { wbp_->bounce(); }
-    Rpnn &              bouncer(rpnnBouncer *wb)
-                         { wbp_ = wb; return *this; }
+    Rpnn &              bounce_weights(void)
+                         { wbp_->bounce(); return *this; }
+    const rpnnBouncer & bouncer(void) const
+                         { return *wbp_; }
     rpnnBouncer &       bouncer(void)
                          { return *wbp_; }
+    Rpnn &              bouncer(rpnnBouncer &wb)
+                         { wbp_ = &wb; bouncer().nn(*this); return *this; }
+    rpnnBouncer &       native_bouncer(void)
+                         { return wb_; }
+    Rpnn &              terminate(bool x = true)
+                         { terminate_ = x; return *this; }
+    const std::map<std::string, double> &
+                        gpm(void) const
+                         { return gpm_; }
+    Rpnn &              gpm(const std::string &param, double x) {   // setup a general parameter
+                         gpm_.at(param) = x;
+                          #define XMACRO(X) X ## _ = gpm_[STR(X)];
+                          XMACRO_FOR_EACH(GENPARAMS)
+                          #undef XMACRO
+                         return *this;
+                        }
+    double              gpm(const std::string &param) const
+                         { return gpm_.at(param); }
 
-
-    SERDES(Rpnn, input_sets_, nis_, target_sets_, nts_,neurons_,
+    SERDES(Rpnn, input_sets_, nis_, target_sets_, nts_, neurons_,
                  &Rpnn::serdes_itr_, output_errors_, target_error_,
-                 min_step_, max_step_, dw_factor_, wb_, wbp_,
-                 Rpnn::cf_Sse, Rpnn::cf_Xntropy, cf_, epoch_, terminate_, error_trail_)
+                 MIN_STEP_, MAX_STEP_, DW_FACTOR_, wb_, wbp_,
+                 Rpnn::cf_Sse, Rpnn::cf_Xntropy, cf_, epoch_, terminate_, error_trail_, gpm_)
 
     OUTABLE(Rpnn, addr(), min_step(), max_step(), dw_factor(), target_error_,
                   cost_func(), wbp_, epoch_, terminate_,
@@ -526,13 +714,11 @@ class Rpnn {
                          { return this; }
     size_t              effectors_start_idx(void) const {
                          if(effectors_ == nend_) return 0;
-                         return std::distance(neurons().begin(),
-                                              static_cast<lNeuron::const_iterator>(effectors_));
+                         return receptors_count() + 1;
                         }
     size_t              output_neurons_start_idx(void) const {
                          if(output_neurons_ == nend_) return 0;
-                         return std::distance(neurons().begin(),
-                                        static_cast<lNeuron::const_iterator>(output_neurons_));
+                         return neurons().size() - output_neurons_count();
                         }
     const char *        cost_func(void) const {
                          size_t ci;
@@ -551,12 +737,24 @@ const std::vector<Norm>&target_normalization(void) const
 
  protected:
 
+    // copy helper for CC
+    COPY(Rpnn, DBG(), output_errors_, nis_, target_sets_, nts_, target_error_,
+               MIN_STEP_, MAX_STEP_, DW_FACTOR_, cf_, wb_, error_trail_,
+               epoch_, stop_on_nan_, terminate_, cf_vec_, gpm_)
+
+
+    // materialize in std::map all parameters from GENPARAMS definition
+    #define XMACRO(X)   {STR(X), RPNN_ ## X},
+    std::map<std::string, double>
+                        gpm_{ XMACRO_FOR_EACH(GENPARAMS) };     // general parameters map
+    #undef XMACRO
+
     void                compute_error_(size_t p);
     void                educate_(size_t p);
     bool                is_lm_detected_(double err);
     void                normalize_patterns_(vvDouble &ptrn, std::vector<Norm> &np);
 
-
+    // data
     lNeuron             neurons_;                               // vector of all neurons
     lNeuron::iterator   nend_{neurons_.end()};                  // initializer for effectros/on
     lNeuron::iterator   effectors_{nend_};                      // beginning of effectors
@@ -569,18 +767,26 @@ const std::vector<Norm>&target_normalization(void) const
     std::vector<Norm>   nts_;                                   // norm vector per target pattern
 
     double              target_error_{0.01};                    // global target error, set by user
-    double              min_step_{RPNN_MIN_STEP};
-    double              max_step_{RPNN_MAX_STEP};
-    double              dw_factor_{RPNN_DW_FACTOR};
     c_func *            cf_{Rpnn::cf_Sse};                      // default cost func.
     rpnnBouncer         wb_{this};
     rpnnBouncer *       wbp_{&wb_};
     fifoDeque<double>   error_trail_;                           // for detecting LM traps
+    size_t              epoch_{0};
+    bool                stop_on_nan_{true};
+    bool                terminate_{false};
+
+    // define global parameters (for quicker access)
+    #define XMACRO(X)   double X ## _{gpm(STR(X))};
+    XMACRO_FOR_EACH(GENPARAMS)
+    #undef XMACRO
 
  private:
 
-    Rpnn &              reset_lm_(void)
-                         { error_trail_.clear(); return *this; }
+    Rpnn &              reset_lm_(void) {
+                         error_trail_.clear();                  // empty error_trail_ drives init,
+                         error_trail_.push_back(std::numeric_limits<double>::max());// non-empty
+                         return *this;
+                        }
     double              normalize_(double x, rpnnNeuron *n) {   // normalize receptr in its pattern
                          auto ni = ++neurons().begin();         // begin from 1st receptor
                          for(auto nsi = nis_.begin(); nsi != nis_.end(); ++nsi, ++ni)
@@ -600,20 +806,22 @@ const std::vector<Norm>&target_normalization(void) const
                         }
     void                build_vector_(std::vector<int> &) {}
 
-    size_t              epoch_{0};
-    bool                stop_on_nan_{true};
-    bool                terminate_{false};
     // provide mapping for all predefined const functions (used in debugs only)
     #define XMACRO(X)   cf_ ## X,
-   std::vector<c_func*> cf_vec_{ XMACRO_FOR_EACH(RPNN_COSTFUNC) };
+    std::vector<c_func*>cf_vec_{ XMACRO_FOR_EACH(RPNN_COSTFUNC) };
     #undef XMACRO
 
+    static vvDouble     dummy_ts_;                              // dummy (default) target_set
 };
 
 STRINGIFY(Rpnn::ThrowReason, THROWREASON)
 STRINGIFY(Rpnn::costFunc, RPNN_COSTFUNC)
 #undef THROWREASON
 #undef RPNN_COSTFUNC
+
+Rpnn::vvDouble Rpnn::dummy_ts_;                                 // dummy (default) target_set
+
+
 
 
 
@@ -642,12 +850,10 @@ void rpnnNeuron::serdes_is_(Blob &b) {
 void Rpnn::serdes_itr_(Blob &b) const {
  // serialize effectors and output_neurons iterators
  if(b.append_cntr(effectors_ != nend_))                         // preserve effectors_ itr
-  b.append_cntr(std::distance(neurons().begin(),
-                              static_cast<lNeuron::const_iterator>(effectors_)));
+  b.append_cntr(receptors_count() + 1);
 
  if(b.append_cntr(output_neurons_ != nend_))                    // preserve output_neurons_ itr
-  b.append_cntr(std::distance(neurons().begin(),
-                              static_cast<lNeuron::const_iterator>(output_neurons_)));
+  b.append_cntr(neurons().size() - output_neurons_count());
 }
 
 void Rpnn::serdes_itr_(Blob &b) {
@@ -776,7 +982,7 @@ double rpnnNeuron::tf_Softmax(double x, rpnnNeuron* n) {  // only for output per
 
 rpnnNeuron & rpnnNeuron::load(double x) {                       // load data directly into receptor
  if(not is_receptor() or this == &nn().neurons().front())       // i.e. non-receptor or "the one"
-  throw Rpnn::loading_in_non_receptor;
+  throw nn().EXP(Rpnn::ThrowReason::loading_in_non_receptor);
  out_ = nn().normalizing()? nn().normalize_(x, this): x;
  return *this;
 }
@@ -788,7 +994,7 @@ void rpnnNeuron::grow_synapses(size_t i)                        // extend synaps
 
 
 
-void rpnnNeuron::decay_synapses(size_t n) {
+void rpnnNeuron::prune_synapses(size_t n) {
  // n - linked neuron n (not a synapse index!) in NN topology
  for(auto si = synapses().begin(); si != synapses().end(); ++si)
   if( &si->linked_neuron() == &nn().neuron(n) )
@@ -815,12 +1021,105 @@ double rpnnNeuron::transfer_delta_(double x) {
 
 //                          Bouncer methods
 //
-void rpnnBouncer::bounce(void) {
- // bounce all weights for all effectors (synapses)
- for(auto ei = nn().effectors(); ei != nn().neurons().end(); ei++)
-  for(auto &s: ei->synapses())
-   s.weight( static_cast<double>(rnd_()) * range() / rnd_.max() + base() );
+rpnnBouncer & rpnnBouncer::nn(Rpnn & n) {
+ nnp_ = &n;
+ base_ = n.gpm(STR(NRM_MIN));
+ range_ = n.gpm(STR(NRM_MAX)) - base_;
+ return *this;
 }
+
+
+
+void rpnnBouncer::default_bouncer_(rpnnBouncer *b) {
+ // bounce all weights for all effectors (synapses)
+ auto &nn = b->nn();
+ for(auto ei = nn.effectors_itr(); ei != nn.neurons().end(); ei++)
+  for(auto &s: ei->synapses())
+   s.weight( static_cast<double>(b->rnd()()) * b->range() / b->rnd().max() + b->base() );
+}
+
+
+
+
+
+/* uniformBouncer - alternative bouncer, given for reference
+ *
+ * an alternative functor class for weight scattering of the hosting Rpnn
+ * instead of pure weights randomization, it builds a limited number of sets of uniform weight
+ * distributions and then access those randomly (never repeating accessed ones)
+ *
+ */
+class uniformBouncer {
+ public:
+    void                operator()(rpnnBouncer *b);
+    void                reset(void)
+                         { init_ = true; }
+
+ private:
+    void                initialize_(const Rpnn &nn);
+    std::map<size_t, std::deque<double>>
+                        uw_;                                    // uniform weights map
+    bool                init_{true};
+};
+
+
+
+void uniformBouncer::initialize_(const Rpnn &nn) {
+ // provide uniform weight distribution
+ // build first portion of the map: from even to entirely uneven distribution
+ size_t s = nn.synapse_count();
+ double base = nn.gpm(STR(NRM_MIN));
+ double range = nn.gpm(STR(NRM_MAX)) - base;
+ double step = range / static_cast<double>(s - 1);
+ for(size_t i = 0; i < s; ++i) {
+  double x = base;
+  for(size_t j = 0; j < s; ++j) {
+   uw_[i].push_back(x);
+   if(i > j) x += step;
+  }
+ }
+ // and its mirrored distribution
+ for(size_t i = 1; i < s; ++i) {
+  size_t us = uw_.size();
+  for(size_t j = 0; j < s; ++j)
+   uw_[us].push_back(base + base + range - uw_[i][j]);
+ }
+
+ // duplicate built maps S-1 times, right-shifting it each time
+ for(size_t i = 1; i < s; ++i) {
+  for(size_t j = 1, x = uw_.size() - s * 2 + 2; j < s * 2; ++j, ++x) {
+   size_t us = uw_.size();
+   uw_[us] = uw_[x];
+   uw_[us].push_front(uw_[us].back());
+   uw_[us].pop_back();
+  }
+ }
+ DBG(nn, 0)
+   DOUT(nn) << "generated " << uw_.size() << " total weight distributions" << std::endl;
+ init_ = false;
+}
+
+
+
+void uniformBouncer::operator()(rpnnBouncer *b) {
+ // select first entry in uw_, fill out weights and delete it
+ if(init_) initialize_(b->nn());
+ if(uw_.empty())                                                // all distributions exhausted
+  { b->nn().terminate(); reset(); return; }
+
+ auto &nn = b->nn();
+ auto it = uw_.lower_bound(b->rnd()() % uw_.size())  ;
+ auto wit = it->second.begin();
+
+ for(auto ei = nn.effectors_itr(); ei != nn.neurons().end(); ei++)
+  for(auto &s: ei->synapses()) {
+   if(wit == it->second.end())
+    throw b->nn().EXP(Rpnn::inconsistent_synapse_map);
+   s.weight(*wit++);
+  }
+ uw_.erase(it);
+}
+
 
 
 
@@ -828,6 +1127,31 @@ void rpnnBouncer::bounce(void) {
 
 //                          Rpnn methods
 //
+
+Rpnn::Rpnn(const Rpnn &src) {                                   // CC
+ // CC performs rather a cloning operation - topology has to be restored properly
+ copy(*this, src);
+ bouncer(wb_);                                                  // restore default bouncer pointer
+ bouncer().weight_updater(src.bouncer().weight_updater());      // take bouncer function from src
+ nend_ = neurons_.end();
+ std::map<const rpnnNeuron *, rpnnNeuron *> nmap;               // src neurons addrs -> dst's
+
+ for(auto &n: src.neurons()) {                                  // build x-reference for neurons
+  neurons().push_back(n);
+  neurons().back().nn(*this);
+  nmap.emplace(&n, &neurons().back());
+ }
+
+ for(auto &n: neurons())                                        // link up all the synapses
+  for(auto &s: n.synapses())
+   s.nn(*this).linkup_neuron(*nmap[&s.prior_neuron()]);
+
+ output_neurons_ = effectors_ = neurons().begin();              // restore all iterators
+ std::advance(effectors_, src.effectors_start_idx());
+ std::advance(output_neurons_, src.output_neurons_start_idx());
+}
+
+
 
 // predefined cost functions:
 double Rpnn::cf_Sse(double output, double target) {
@@ -846,7 +1170,8 @@ typename std::enable_if<std::is_same<A, std::allocator<T>>::value and
                         std::is_fundamental<T>::value, Rpnn &>::type
 Rpnn::full_mesh(const Container<T, A> & c) {
  // do some checks and build a full mesh topology
- if(c.size() < 2) throw EXP(Rpnn::min_two_perceptrons_requied);
+ if(c.size() < 2)
+  throw EXP(Rpnn::min_two_perceptrons_requied);
 
  size_t sum = 1;                                                // provision "the one"
  for(auto v: c) {
@@ -874,7 +1199,7 @@ Rpnn::full_mesh(const Container<T, A> & c) {
  }
 
  if(output_neurons_ == neurons().end()) output_neurons_ = ppi;
- output_errors_.resize(std::distance(output_neurons_, neurons().end()));
+ output_errors_.resize(output_neurons_count());
  return *this;
 }
 
@@ -884,10 +1209,10 @@ Rpnn & Rpnn::load_patterns(const vvDouble & ip, const vvDouble & tp) {
  // load ip/tp into respective containers, connect to input neurons
  // normalize target data, optionally normalize the input data
 
- // link input patterns to receptors or load and normalize
- if(ip.size() != SIZE_T(std::distance(neurons().begin(), effectors()) - 1))
+ if(ip.size() != receptors_count())
   throw EXP(Rpnn::receptors_misconfigured);
 
+ // link input patterns to receptors or load and normalize
  auto pi = ip.begin();
 
  if(normalizing()) {                                            // then copy and normalize
@@ -896,11 +1221,13 @@ Rpnn & Rpnn::load_patterns(const vvDouble & ip, const vvDouble & tp) {
   pi = input_patterns().begin();
  }
  // linkup each receptor to the respective input pattern
- for(auto ri = ++neurons().begin(); ri != effectors(); ++ri, ++pi)
+ for(auto ri = ++neurons().begin(); ri != effectors_itr(); ++ri, ++pi)
   ri->input_pattern(*pi);
 
+ if(&tp == &Rpnn::dummy_ts_) return *this;                      // skip loading targets
+
  // load targets (targets must be always copied and normalized)
- if(tp.size() != SIZE_T(std::distance(output_neurons(), neurons().end())))
+ if(tp.size() != output_neurons_count())
   throw EXP(Rpnn::output_config_inconsistent);
  target_patterns() = tp;
  normalize_patterns_(target_patterns(), nts_);
@@ -931,13 +1258,13 @@ void Rpnn::topology_check(void) {
   throw EXP(Rpnn::the_one_misconfigured);
 
  // effectors iterator assigned (following all receptors)
- size_t e_dist = std::distance(neurons().begin(), effectors());
- if(effectors() == nend_ or e_dist <= 1)
+ size_t e_dist = std::distance(neurons().begin(), effectors_itr());
+ if(effectors_itr() == nend_ or e_dist <= 1)
   throw EXP(Rpnn::effectors_undefined);
 
- // all receptors should have input patters assigned (same size) and don't have synapses
+ // all receptors should have input patterns assigned (same size) and don't have synapses
  size_t ips = 0;                                                // input patterns size
- for(auto ri = ++neurons().begin(); ri != effectors(); ++ri) {
+ for(auto ri = ++neurons().begin(); ri != effectors_itr(); ++ri) {
   if(ri->input_pattern() == nullptr or not ri->synapses().empty())
    throw EXP(Rpnn::receptors_misconfigured);
   if(ips == 0 and ri == ++neurons().begin())                    // ips unresolved & it's 1st neuron
@@ -948,14 +1275,14 @@ void Rpnn::topology_check(void) {
  }
 
  // output_neurons iterator assigned (after or eq to effectors start)
- size_t o_dist = std::distance(neurons().begin(), output_neurons());
- if(effectors() == nend_ or o_dist < e_dist)
+ size_t o_dist = std::distance(neurons().begin(), output_neurons_itr());
+ if(effectors_itr() == nend_ or o_dist < e_dist)
   throw EXP(Rpnn::output_neurons_undefined);
 
- // all output_errors size must be equal to output_neurons and number of target_patters
- o_dist = std::distance(output_neurons(), neurons().end());
+ // all output_errors size must be equal to output_neurons and number of target_patterns
+ o_dist = output_neurons_count();
  if(o_dist == 0 or
-    o_dist != output_errors().size() or
+        o_dist != output_errors().size() or
     o_dist != target_patterns().size() or
     target_patterns().front().size() != ips)
   throw EXP(Rpnn::output_config_inconsistent);
@@ -965,15 +1292,15 @@ void Rpnn::topology_check(void) {
 
 void Rpnn::converge(size_t epochs) {
  // converge either to solution (error < target) or end of epochs
- DBG(2) DOUT() << "dump before convergence: " << *this << std::endl;
- topology_check();
-
  if(error_trail_.empty()) {                                     // haven't been trained before
-  wbp_->bounce();
+  DBG(2) DOUT() << "dump before convergence: " << *this << std::endl;
+  topology_check();
+  bouncer().reset();
+  bounce_weights();
   init_neurons_();
  }
 
- epoch_ = 0;
+ if(not terminate_) epoch_ = 0;
  size_t patterns = (++neurons().begin())->input_pattern()->size();
 
  while(not terminate_) {                                        // terminate_ is external signal
@@ -990,17 +1317,18 @@ void Rpnn::converge(size_t epochs) {
   if(stop_on_nan() and isnan(global_err))
    throw EXP(Rpnn::stopped_on_nan_error);
 
-  if(global_err < target_error() or epoch_ >= epochs) {         // provisioning for LM finder class
-   if(wbp_->finish_upon_convergence()) break;
-   DBG(0) DOUT() << "re-bouncing, epoch " << epoch_ << ", error: " << global_err
-                 << ", target error: " << target_error() << std::endl;
-   bounce_weights();                                             // to change target error possibly
+  if(not wbp_->finish_upon_lmd())                               // check for errors and epochs
+   if(global_err < target_error() or epoch_ >= epochs)          // only if not running in BLM mode
+    break;
+
+  if(lm_detection() and is_lm_detected_(global_err)) {          // found local minimum?
+   if(wbp_->finish_upon_lmd()) break;                           // in BLM it's end of run
+   init_neurons_();                                             // otherwise continue
+   bounce_weights();
+   continue;
   }
 
-  if(lm_detection() > 0 and is_lm_detected_(global_err))        // provisioning for LM finder class
-   if(terminate_) break;                                        // could have been setup by bounce
-
-  for(auto ei = effectors(); ei != neurons().end(); ei++)       // update new weights based on new
+  for(auto ei = effectors_itr(); ei != neurons().end(); ei++)   // update new weights based on new
    ei->commit_weights();                                        // gradients computed in educate()
   epoch_++;
  }
@@ -1013,7 +1341,7 @@ void Rpnn::converge(size_t epochs) {
 
 void Rpnn::init_neurons_(void) {
  // initialize all neurons and their synapses with initial values
- for(auto ei = effectors(); ei != neurons().end(); ei++) {
+ for(auto ei = effectors_itr(); ei != neurons().end(); ei++) {
   for(auto &s: ei->synapses()) {
    s.delta_weight(1.);
    s.gradient(0.);
@@ -1037,7 +1365,7 @@ void Rpnn::educate_(size_t p) {                                 // p - trained p
  // "educate" all effectors: make sure they learn the lesson
 
  // 1. prepare (clear) bpErrors in all effectors except output neurons
- for(auto ei = effectors(); ei != output_neurons_; ei++)
+ for(auto ei = effectors_itr(); ei != output_neurons_; ei++)
   ei->bp_err(0.);
 
  // 2. update only output neurons bpe (bpe = target - output)
@@ -1065,17 +1393,16 @@ bool Rpnn::is_lm_detected_(double err) {
  auto & et = error_trail_;
 
  auto is_looping = [&](void) -> bool {                          // detect looping lambda
-  bool sim_value{true};
+  bool sim_value{true};                                         // presume all values are similar
   for(auto tt = tortoise, th = tt + 1, ht = hare, hh = ht + 1;  // tortoise/hare head/tail
       hh < et.capacity();
       ++tt, ++th, ++ht, ++hh) {
-   // if |dt-dh / dh| > LMD% then no looping
-   if(et[tt] != 0. and fabs((et[tt] - et[ht]) / et[tt]) >= RPNN_LMD_SIMV)
-    sim_value &= false;
-   if(fabs(((et[th] - et[tt]) - (et[hh] - et[ht])) / (et[hh] - et[ht])) >= RPNN_LMD_PTRN) {
+   if(et[tt] != 0. and fabs((et[tt] - et[ht]) / et[tt]) >= LMD_PTRN_)
+    sim_value &= false;                                         // not all similar
+    //if |dt-dh / dh| > LMD% then no looping
+   if(fabs(((et[th] - et[tt]) - (et[hh] - et[ht])) / (et[hh] - et[ht])) >= LMD_PTRN_)
     if(sim_value == false)
      return false;                                              // not looping
-   }
   }
   return true;
  };
@@ -1084,12 +1411,11 @@ bool Rpnn::is_lm_detected_(double err) {
        hare < error_trail_.capacity()) {
   if(is_looping()) {                                            // then see if it's looping
     DBG(0) DOUT() << "LM trap detected at epoch " << epoch_
+                  << ", LMD_PTRN_: " << LMD_PTRN_
                   << ", error: " << global_error()
                   << " (target error: " << target_error() << ")" << std::endl;
-    bounce_weights();
-    init_neurons_();
-    reset_lm_();
-    return true;
+   reset_lm_();
+   return true;                                                 // indicate LM found
   }
   ++++hare;
   ++tortoise;
@@ -1113,7 +1439,7 @@ void Rpnn::normalize_patterns_(vvDouble &ptrn, std::vector<Norm> &np) {
 
  for(size_t i = 0; i < ptrn.size(); ++i) {                      // normalize all patterns
   if(&ptrn == &target_patterns()) {                             // ON logistic could vary, hence
-   auto on = output_neurons();                                  // require own b/r per each neurn
+   auto on = output_neurons_itr();                              // require own b/r per each neurn
    std::advance(on, i);
    min = on->transfer(-std::numeric_limits<double>::max(), nullptr);
    max = on->transfer(std::numeric_limits<double>::max(), nullptr);
@@ -1129,15 +1455,163 @@ void Rpnn::normalize_patterns_(vvDouble &ptrn, std::vector<Norm> &np) {
 
 
 
+/*
+ *  blmFinder - find best minimum via running convergence concurrently
+ *  it's a child class of rpnnBouncer
+ *
+ * Makes multiple copies of hosting Rpnn object and run Rpnn::converge in concurrent threads
+ * allowing to converge only once until LM is found, then, LM's error is compared against
+ * best found LM error - if better error found, update best found LM error and reduce goal_error
+ * by a factor, else (found error is worse than best found) - the goal_error is increased by
+ * a factor (approaching current best LM error), then (in either case) restart the thread
+ *
+ * The exit criteria is either:
+ *  - the found error is better than target's error
+ *  - the delta between best found LM error and goal_error is below target error
+ *
+ */
+
+
+class blmFinder: public rpnnBouncer {
+ using nnv_type = std::vector<Rpnn>;
+
+ public:
+                        blmFinder(size_t t = 0)
+                         { tm_.resize(t); }
+                        blmFinder(Rpnn &n, size_t t = 0): blmFinder(t)
+                         { nn(n); rf_ = n.gpm(STR(BLM_RDCE)); }
+
+    ThreadMaster &      thread_ctl(void)
+                         { return tm_; }
+    double              reduce_factor(void) const
+                         { return rf_; }
+    blmFinder &         reduce_factor(double x)
+                         { rf_ = x; return *this; }
+    void                bounce(void);
+    void                find_blm(nnv_type &);
+
+    SERDES(blmFinder, best_lm_err_, goal_err_, rf_, &blmFinder::serdes_parent_)
+
+ private:
+    void                serdes_parent_(Blob &b) const {                 // serializer
+                         b.append_cntr(tm_.size());
+                         b.append(static_cast<const rpnnBouncer &>(*this));
+                        }
+    void                serdes_parent_(Blob &b) {                       // de-serializer
+                         auto t = b.restore_cntr();
+                         tm_.resize(t);
+                         b.restore(static_cast<rpnnBouncer&>(*this));
+                        }
+
+    bool                is_goal_reached_(void);
+    void                preserve_weights_(const Rpnn &);
+
+    ThreadMaster        tm_;
+    double              best_lm_err_{std::numeric_limits<double>::max()};
+    double              goal_err_{0};
+    double              rf_{RPNN_BLM_RDCE};                     // reduce factor
+};
+
+
+
+void blmFinder::bounce(void) {
+ // run rpnn in parallel finding and recording best local minimums
+ if(tm_.size() < 2)
+  throw nn().EXP(Rpnn::ThrowReason::blm_bad_thread_count);
+ std::vector<Rpnn> nnv(tm_.size(), nn());
+ std::vector<rpnnBouncer> lmv(tm_.size());                       // bouncer per each nn in nnv
+
+ size_t synapse_cnt = nnv.front().synapse_count();
+ auto lmv_it = lmv.begin();
+ for(auto &n: nnv) {
+  lmv_it->finish_upon_lmd(true);                                // engage BLM modes
+  n.bouncer(*lmv_it++);                                         // setup own bouncer for each nn
+  n.bouncer().weight_updater(nn().bouncer().weight_updater());  // restore bouncer function
+  n.lm_detection(nn().lm_detection() == 0?                      // original rpnn might not have it
+                  synapse_cnt * 3: nn().lm_detection());        // so setup if it doesn't
+  n.DBG().severity(NDBG);
+ }
+ DBG(1)
+  DOUT() << "lm_detection size for clones: " << nnv.front().lm_detection() << std::endl;
+
+ find_blm(nnv);
+ nn().terminate();                                              // don't converge original nn
+}
+
+
+
+void blmFinder::find_blm(nnv_type &nnv) {
+ // run multiple threads searching for the deepest LM
+ auto glambda = [&](Rpnn &n, auto&&... arg)                     // helper lambda to start thread
+  { return n.converge(std::forward<decltype(arg)>(arg)...); };
+
+ for(auto &n: nnv)
+  tm_.start_sync(glambda, std::ref(n), SIZE_T(-1));
+ tm_.start_sync();
+
+ for(size_t seat = 0;
+     not is_goal_reached_();
+     tm_.run_seat(seat, glambda, std::ref(nnv[seat].bounce_weights()), SIZE_T(-1))) {
+  seat = tm_.await_seat();                                      // wait for any thread to finish
+  auto & n = nnv[seat];
+  nn().epoch(nn().epoch() + n.epoch());
+  if(n.global_error() >= best_lm_err_) {                        // worse LM found
+   auto check = goal_err_;
+   goal_err_ += (best_lm_err_ - goal_err_) / reduce_factor();   // reducing goal error might render
+   if(goal_err_ == check) break;                                // it out of double precision
+   continue;
+  }
+
+  // better LM found
+  preserve_weights_(n);
+  best_lm_err_ = n.global_error();
+  goal_err_ = best_lm_err_ / reduce_factor();
+  DBG(2)
+   DOUT() << "better error found: " << best_lm_err_ << " (goal: " << goal_err_ << ")" << std::endl;
+ }
+
+ for(auto &n: nnv) n.terminate();                               // to all threads
+ tm_.join();
+}
+
+
+
+bool blmFinder::is_goal_reached_(void) {
+ if(best_lm_err_ <= nn().target_error()) return true;
+ if(best_lm_err_ - goal_err_ <= nn().target_error()) return true;
+ return false;
+}
+
+
+
+void blmFinder::preserve_weights_(const Rpnn &src) {
+ // preserve all weights from src nn
+ auto src_it = src.effectors_itr();
+ for(auto it = nn().effectors_itr(); it != nn().neurons().end(); ++it, ++src_it) {
+  auto sit = src_it->synapses().begin();
+  for(auto &s: it->synapses())
+   s.weight(sit++->weight());
+ }
+ nn().output_errors() = src.output_errors();
+}
+
+
+
+
+
 #undef SIZE_T
+#undef XSTR
+#undef STR
+#undef XCHR
+#undef CHR
 #undef RPNN_MIN_STEP
 #undef RPNN_MAX_STEP
 #undef RPNN_DW_FCTOR
-#undef RPNN_RANGE
-#undef RPNN_BASE
-
-
-
+#undef RPNN_NRM_MIN
+#undef RPNN_NRM_MAX
+#undef RPNN_LMD_PTRN
+#undef RPNN_BLM_RDCE
+#undef GENPARAMS
 
 
 

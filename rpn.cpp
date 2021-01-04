@@ -2,6 +2,18 @@
  *  rpn.currentp
  *
  * Created by Dmitry Lyssenko
+ *
+ * a cli toy for playing with Resilient backprop NN
+ * it features:
+ *  - easy way to build any topology (including recursive)
+ *  - flexibility for choosing out of multiple logistic functions (for hidden and output neurons)
+ *  - 2 cost functions (SSE, Cross-Entropy)
+ *  - multiple output classes (including multi-class, using Softmax logistic as output activation)
+ *  - local minimum early detection mechanism - drastically increases chances for convergence
+ *  - finding better (deeper) local minimum mechanism via multi-threaded search
+ *    where no global minimum exist
+ *  - auto-enumeration of symbolic inputs (channels must be independent of each other)
+ *
  */
 
 #include <iostream>
@@ -16,13 +28,21 @@
 
 using namespace std;
 
-#define PRGNAME "Resilient Propagation Neural network"
-#define VERSION "0.01"
+#define PRGNAME "Resilient Propagation Neural network (https://github.com/ldn-softdev/Rpnn)"
+#define VERSION "1.02"
 #define CREATOR "Dmitry Lyssenko"
 #define EMAIL "ldn.softdev@gmail.com"
 
+
 #define SIZE_T(N) static_cast<size_t>(N)
 
+#define ITR first                                           // for emplace pair
+#define STATUS second                                       // for emplace pair
+#define KEY first                                           // for iterator pair
+#define VALUE second                                        // for iterator pair
+
+#define OPT_ABC a                                           // engage alternative (uniform) bouncer
+#define OPT_BLM b                                           // engage finding blm
 #define OPT_DBG d                                           // debug
 #define OPT_TPG t                                           // topology
 #define OPT_ERR e                                           // target error
@@ -38,6 +58,7 @@ using namespace std;
 #define OPT_SED s                                           // seed for randomizer
 #define OPT_RUP u                                           // round up outputs
 #define OPT_GSR G                                           // grow synapses recursively
+#define OPT_GPM P                                           // generic parameters
 
 #define XSTR(X) #X
 #define STR(X) XSTR(X)
@@ -49,14 +70,110 @@ using namespace std;
 #define EXT_CDNTCV 3                                        // Failed convergence
 
 
-// map of predefined cost functions
-map<const char*, void*> Cfm {
+
+
+
+class TwoWayConversion {
+ public:
+                        TwoWayConversion(void) = default;
+
+    double              operator()(const string & s);
+    string              operator()(double);
+    bool                empty(void) const
+                         { return s2i_.empty(); }
+    size_t              size(void) const
+                         { return s2i_.size(); }
+    void                roundup(bool x)
+                         { ru_ = x; }
+
+    SERDES(TwoWayConversion, s2i_, i2s_, ru_)
+
+ protected:
+    map<string, size_t> s2i_;
+    vector<string> i2s_;
+
+ protected:
+    bool                ru_{true};                              // roundup b4 converting to string?
+};
+
+
+double TwoWayConversion::operator()(const string & str) {
+ // convert to double, enumerate non-convertible
+ if(s2i_.empty())                                               // try stod first
+  try { return stod(str); } catch (...) {}
+
+ size_t idx = s2i_.size();
+ auto er = s2i_.emplace(str, idx);
+ if(er.STATUS == true) i2s_.push_back(move(str));               // new element, update reverse map
+ return er.ITR->VALUE;
+}
+
+
+string TwoWayConversion::operator()(double x) {
+ // convert to string, round up before conversion if required
+ auto to_str = [&](double x) {
+       stringstream ss;
+       ss << (ru_? floor(x + 0.5): x);
+       return ss.str();
+      };
+
+ if(i2s_.empty())                                               // no enumeration occurred
+  return to_str(x);
+ size_t idx = x + 0.5;
+ return idx < i2s_.size()? i2s_[idx]: to_str(x);
+}
+
+
+
+
+
+class Rpn: public Rpnn {
+ // housing Rpnn, and some extra classes facilitating all Rpnn functionality
+ public:
+                        Rpn(void) = delete;
+                        Rpn(Getopt &opt): opt_{&opt}
+                         { bouncer(blm_); DBG().severity(blm_); }
+
+    Getopt &            opt(void)
+                         { return *opt_; }
+    const map<const char*, void*> &
+                        cfm(void) const
+                         { return cfm_; }
+    const map<const char*, void*> &
+                        tfm(void) const
+                         { return tfm_; }
+
+    Rpn &               configure(void);
+    Rpn &               resolve(void);
+    Rpn &               run(void);
+
+
+ protected:
+    blmFinder           blm_;
+    uniformBouncer      ub_;
+
+
+ private:
+    using vvDouble = vector<vector<double>>;
+
+    bool                read_patterns_(vvDouble &ip, vvDouble &tp = dummy_tp);
+
+
+    Getopt *            opt_;
+    vector<TwoWayConversion>
+                        cnv_;
+
+
+    // map of predefined cost functions
+    map<const char*, void*>
+                        cfm_ {
         {ENUMS(Rpnn::costFunc, Rpnn::Sse), reinterpret_cast<void*>(Rpnn::cf_Sse)},
         {ENUMS(Rpnn::costFunc, Rpnn::Xntropy), reinterpret_cast<void*>(Rpnn::cf_Xntropy)}
-       };
+    };
 
-// map predefined logistic functions
-map<const char*, void*> Tfm {
+    // map predefined logistic functions
+    map<const char*, void*>
+                        tfm_ {
         {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Sigmoid),
             reinterpret_cast<void*>(rpnnNeuron::tf_Sigmoid)},
         {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Tanh),
@@ -69,13 +186,12 @@ map<const char*, void*> Tfm {
             reinterpret_cast<void*>(rpnnNeuron::tf_Softplus)},
         {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Softmax),
             reinterpret_cast<void*>(rpnnNeuron::tf_Softmax)},
-       };
+    };
 
+    static vvDouble dummy_tp;                               // default param for read_patterns
+};
 
-void configure_rpn(Rpnn &, Getopt &);
-void run_convergence(Rpnn &, Getopt &);
-void run_preserved(Rpnn &, Getopt &);
-
+vector<vector<double>> Rpn::dummy_tp;
 
 
 
@@ -83,9 +199,14 @@ void run_preserved(Rpnn &, Getopt &);
 int main(int argc, char* argv[]) {
 
  Getopt opt;
+ Rpn rpn(opt);
+
  opt.prolog("\n" PRGNAME "\nVersion " VERSION " (built on " __DATE__ \
             "), developed by " CREATOR " (" EMAIL ")\n");
 
+ opt[CHR(OPT_ABC)].desc("plug in a uniform bouncer (alternative to randomizer)");
+ opt[CHR(OPT_BLM)].desc("best local minimum search (0: #threads equals #cores)")
+                  .name("threads");
  opt[CHR(OPT_DBG)].desc("turn on debugs (multiple calls increase verbosity)");
  opt[CHR(OPT_TPG)].desc("full mesh topology (enumerated perceptrons)")
                   .bind("1,1").name("perceptrons");
@@ -102,28 +223,36 @@ int main(int argc, char* argv[]) {
  opt[CHR(OPT_RDF)].desc("file to reinstate Rpnn brain from").bind("rpn.bin").name("file_name");
  opt[CHR(OPT_SED)].desc("seed for randomizer (0: auto)").bind("0").name("seed");
  opt[CHR(OPT_RUP)].desc("round up outputs to integer values");
+ opt[CHR(OPT_GPM)].desc("modify generic parameters (PARAM=x,y,..)").name("param");
  opt[0].desc("epochs to run convergence").name("epochs").bind("100000");
 
  string epilog{R"(
-available cost functions:
-{CF}
-available logistic functions:
-{LF}
-- parameters N,M are zero based, the index 0 refers to a reserved neuron "the one"
-- factor for option -)" STR(OPT_LMF) R"( is multiple of the total count of synapses (weights)
-)"};
+ - parameters N,M are zero based, the index 0 refers to a reserved neuron "the one"
+ - factor for option -)" STR(OPT_LMF) R"( is multiple of the total count of synapses (weights)
 
- // update epilogue with predefined costs & logistics
- stringstream ss;
- for(auto &cf: Cfm) ss << "\to " << cf.first << endl;
- epilog = regex_replace(epilog, std::regex{R"(\{CF\})"}, ss.str());
- ss.str("");
- for(auto &tf: Tfm) ss << "\to " << tf.first << endl;
- epilog = regex_replace(epilog, std::regex{R"(\{LF\})"}, ss.str());
+ available cost functions:
+ {CF}
+ available logistic functions:
+ {LF}
+ generic Rpnn parameters (alterable with -)" STR(OPT_GPM) R"():
+ {GPM}
+ for further details refer to https://github.com/ldn-softdev/Rpnn)"};
+
+ // update epilogue with predefined costs, logistics & params
+ auto update_epilogue = [&](auto &cnt, const string &rpl, bool val = false) {
+  stringstream ss;
+  for(auto &c: cnt)
+   { ss << "\to " << c.KEY; if(val) ss << " [" << c.VALUE << "]"; ss << endl; }
+  epilog = regex_replace(epilog, std::regex{R"(\{)" + rpl + R"(\})"}, ss.str());
+ };
+ update_epilogue(rpn.cfm(), "CF");
+ update_epilogue(rpn.tfm(), "LF");
+ update_epilogue(rpn.gpm(), "GPM", true);
  opt.epilog(epilog.c_str());
 
  // parse options
- try { opt.parse(argc, argv); }
+ try
+  { opt.parse(argc, argv); }
  catch(Getopt::stdException &e)
   { opt.usage(); exit(e.code()); }
 
@@ -132,18 +261,15 @@ available logistic functions:
  if(opt[CHR(OPT_DBG)])
   sgn.install_all();
 
- Rpnn rpn;                                                      // our hero
  DEBUGGABLE()
  DBG().use_ostream(cerr)                                        // debug settings
-      .level(opt[CHR(OPT_DBG)])
-      .severity(rpn);
+      .level(opt[CHR(OPT_DBG)]);
 
  try {
-  if(opt[CHR(OPT_RDF)].hits() == 0) {
-   configure_rpn(rpn, opt);
-   run_convergence(rpn, opt);
-  }
-  else run_preserved(rpn, opt);
+  if(opt[CHR(OPT_RDF)].hits() == 0)
+   rpn.configure().resolve();
+  else
+   rpn.run();
  }
  catch(Rpnn::stdException & e) {
   DBG(0) DOUT() << "exception raised by: " << e.where() << endl;
@@ -151,7 +277,7 @@ available logistic functions:
   exit(EXT_RPNEXP);
  }
  catch(exception &e)
-  { cerr << opt.prog_name() << " caught exception " << e.what() << endl; exit(EXT_STDEXP); }
+  { cerr << opt.prog_name() << " caught exception - " << e.what() << endl; exit(EXT_STDEXP); }
 
  return 0;
 }
@@ -178,175 +304,245 @@ vector<T> str_to_num(string s, size_t min_req = 0) {
 
 
 
-void configure_rpn(Rpnn &rpn, Getopt &opt) {
+Rpn & Rpn::configure(void) {
  // parse and configure rpn from all the options
- DEBUGGABLE()
  // topology:
- rpn.full_mesh(str_to_num<int>(opt[CHR(OPT_TPG)].str()));
- DBG(0) DOUT() << "receptors: " << distance(++rpn.neurons().begin(), rpn.effectors()) << endl;
- DBG(0) DOUT() << "effectors: " << distance(rpn.effectors(), rpn.neurons().end()) << endl;
- DBG(0) DOUT() << "output neurons: " << distance(rpn.output_neurons(), rpn.neurons().end()) << endl;
+ full_mesh(str_to_num<int>(opt()[CHR(OPT_TPG)].str()));
+ DBG(0) DOUT() << "receptors: " << receptors_count() << endl;
+ DBG(0) DOUT() << "effectors: " << effectors_count() << endl;
+ DBG(0) DOUT() << "output neurons: " << output_neurons_count() << endl;
 
  // target error
- rpn.target_error(stod(opt[CHR(OPT_ERR)].str()));
- DBG(0) DOUT() << "target error: " << rpn.target_error() << endl;
+ target_error(stod(opt()[CHR(OPT_ERR)].str()));
+ DBG(0) DOUT() << "target error: " << target_error() << endl;
 
  // input normalization
- vector<double> norm = str_to_num(opt[CHR(OPT_INN)].str(), 2);
  stringstream ss;
+ vector<double> norm = str_to_num(opt()[CHR(OPT_INN)].str(), 2);
  if(norm.front() != norm.back()) {
-  rpn.normalize(norm.front(), norm.back());
-  if(rpn.normalizing())
-   ss << " [" << rpn.input_normalization().front().base() << " to " << std::showpos
-      << rpn.input_normalization().front().base()+rpn.input_normalization().front().range() << "]";
+  normalize(norm.front(), norm.back());
+  if(normalizing())
+   ss << " [" << input_normalization().front().base() << " to " << std::showpos
+      << input_normalization().front().base() + input_normalization().front().range() << "]";
  }
- DBG(0) DOUT() << std::boolalpha << "normalize inputs: " << rpn.normalizing() << ss.str() << endl;
+ DBG(0) DOUT() << std::boolalpha << "normalize inputs: " << normalizing() << ss.str() << endl;
 
  // local minimum detection
- rpn.lm_detection(stoul(opt[CHR(OPT_LMF)].str()) * rpn.synapses_count());
- DBG(0) DOUT() << "LM trail size: " << rpn.lm_detection() << endl;
+ lm_detection(stoul(opt()[CHR(OPT_LMF)].str()) * synapse_count());
+ DBG(0) DOUT() << "LM trail size: " << lm_detection() << endl;
 
  // cost function
- for(auto &cfe: Cfm)
-  if(opt[CHR(OPT_COF)].str() == cfe.first)
-   { rpn.cost_function(reinterpret_cast<Rpnn::c_func*>(cfe.second)); break; }
- for(auto &cfe: Cfm)
-  if(cfe.second == rpn.cost_function())
-   { DBG(0) DOUT() << "cost function: cf_" << cfe.first << endl; break; }
+ for(auto &cfe: cfm())
+  if(opt()[CHR(OPT_COF)].str() == cfe.KEY)
+   { cost_function(reinterpret_cast<Rpnn::c_func*>(cfe.VALUE)); break; }
+ for(auto &cfe: cfm())
+  if(cfe.VALUE == cost_function())
+   { DBG(0) DOUT() << "cost function: cf_" << cfe.KEY << endl; break; }
 
  // effectors logistic
- if(opt[CHR(OPT_ETF)].hits() > 0)
-  for(auto &tfe: Tfm)
-   if(opt[CHR(OPT_ETF)].str() == tfe.first) {
-    for(auto ei = rpn.effectors(); ei != rpn.neurons().end(); ++ei)
-     ei->transfer_function(reinterpret_cast<rpnnNeuron::t_func*>(tfe.second));
+ if(opt()[CHR(OPT_ETF)].hits() > 0)
+  for(auto &tfe: tfm())
+   if(opt()[CHR(OPT_ETF)].str() == tfe.KEY) {
+    for(auto ei = effectors_itr(); ei != neurons().end(); ++ei)
+     ei->transfer_function(reinterpret_cast<rpnnNeuron::t_func*>(tfe.VALUE));
     break;
    }
 
  // output neurons logistic
- if(opt[CHR(OPT_OTF)].hits() > 0)
-  for(auto &tfe: Tfm)
-   if(opt[CHR(OPT_OTF)].str() == tfe.first) {
-    for(auto on = rpn.output_neurons(); on != rpn.neurons().end(); ++on)
-     on->transfer_function(reinterpret_cast<rpnnNeuron::t_func*>(tfe.second));
+ if(opt()[CHR(OPT_OTF)].hits() > 0)
+  for(auto &tfe: tfm())
+   if(opt()[CHR(OPT_OTF)].str() == tfe.KEY) {
+    for(auto on = output_neurons_itr(); on != neurons().end(); ++on)
+     on->transfer_function(reinterpret_cast<rpnnNeuron::t_func*>(tfe.VALUE));
     break;
    }
 
  // grow synapses
- for(auto &gs: opt[CHR(OPT_GRS)]) {
+ for(auto &gs: opt()[CHR(OPT_GRS)]) {
   vector<size_t> s = str_to_num<size_t>(gs, 2);
-  rpn.neuron(s[0]).grow_synapses(s[1]);
+  neuron(s[0]).grow_synapses(s[1]);
  }
 
- // grow synapses recursively between N and M
- for(auto &gs: opt[CHR(OPT_GSR)]) {
+ // grow synapses recursively between neurons N and M
+ for(auto &gs: opt()[CHR(OPT_GSR)]) {
   vector<size_t> n = str_to_num<size_t>(gs, 2);                 // n holds range of neurons
   for(size_t sn = n.front(); sn <= n.back(); ++sn)              // sn/dn: source/destination neuron
    for(size_t dn = n.front(); dn <= n.back(); ++dn)
-    if(sn != dn) rpn.neuron(sn).grow_synapses(dn);
+    if(sn != dn) neuron(sn).grow_synapses(dn);
  }
 
  // prune synapses
- for(auto &ps: opt[CHR(OPT_PRS)]) {
+ for(auto &ps: opt()[CHR(OPT_PRS)]) {
   vector<size_t> s = str_to_num<size_t>(ps, 2);
-  rpn.neuron(s[0]).decay_synapses(s[1]);
+  neuron(s[0]).prune_synapses(s[1]);
  }
+
+ // parse GPM
+ for(auto &ps: opt()[CHR(OPT_GPM)]) {                           // process each -P
+  string pname = regex_replace(ps, std::regex{R"([=:].*)"}, "");// extract parameter's name
+  auto fit = gpm().find(pname);                                 // fit = found iterator
+  if(fit == gpm().cend())
+   throw std::length_error("invalid paramenter");
+  vector<double> pval = str_to_num(regex_replace(ps, std::regex{R"(^.*[=:])"}, ""));
+  for(auto pi = pval.begin(); fit != gpm().cend() and pi != pval.end(); ++fit, ++pi)
+   gpm(fit->KEY, *pi);
+ }
+ for(auto fit = gpm().begin(); fit != gpm().cend(); ++fit)
+  DBG(0) DOUT() << "generic parameter " << fit->KEY << ": " << fit->VALUE << endl;
+
+ // engage BLM
+ if(opt()[CHR(OPT_BLM)].hits() == 0) bouncer(native_bouncer());
+ else
+  blm_.reduce_factor(gpm(STR(BLM_RDCE)))
+      .thread_ctl().resize(stod(opt()[CHR(OPT_BLM)].str()));
+ DBG(0) DOUT() << "blm (threads) engaged: " << (&bouncer() == &native_bouncer()?
+                                                "no": to_string(blm_.thread_ctl().size())) << endl;
+
+ if(opt()[CHR(OPT_ABC)].hits() > 0)
+  bouncer().weight_updater(ub_);
+ DBG(0)
+  DOUT() << "bouncer: " << (opt()[CHR(OPT_ABC)].hits() > 0? "alternative":"native") << endl;
 
  // seed
- size_t seed = stoul(opt[CHR(OPT_SED)].str());
- if(seed > 0) rpn.bouncer().seed(seed);
+ size_t my_seed = stoul(opt()[CHR(OPT_SED)].str());
+ if(my_seed > 0) bouncer().seed(my_seed);
  DBG(0) DOUT() << "randomizer seed: "
-               << (seed == 0?
-                   "timer (" + to_string(rpn.bouncer().seed()) + ")": to_string(seed)) << endl;
- DBG(0) DOUT() << "epochs to run: " << stoul(opt[0].str()) << endl;
- DBG(1) DOUT() << rpn << endl;
+               << (my_seed == 0?
+                   "timer (" + to_string(bouncer().seed()) + ")": to_string(my_seed)) << endl;
+
+
+ DBG(0) DOUT() << "epochs to run: " << stoul(opt()[0].str()) << endl;
+
+ return *this;
 }
 
 
-
-void run_convergence(Rpnn &rpn, Getopt &opt) {
+Rpn & Rpn::resolve(void) {
  // read inputs, plug into NN, converge, save to file upon successful convergence
- size_t ip = distance(++rpn.neurons().begin(), rpn.effectors()),// number of input patterns
-        tp = distance(rpn.output_neurons(), rpn.neurons().end());// number of target patterns
+ size_t ip = receptors_count(),                                 // number of input patterns
+        tp = output_neurons_count();                            // number of target patterns
 
- vector<vector<double>> inputs(ip);
- vector<vector<double>> targets(tp);
+ // prepare containers for inputs/targets and read into them
+ vvDouble inputs(ip);
+ vvDouble targets(tp);
+ read_patterns_(inputs, targets);
 
- DEBUGGABLE()
- DBG(0) DOUT() << "start reading training patterns..." << endl;
- string str;
- while(getline(cin, str)) {
-  str = regex_replace(str, std::regex{R"([\s=,]+)"}, " ");
-  if(str == " " or str.empty()) continue;                       // blank line
-  stringstream ss(str);
-  auto ipi = inputs.begin();
-  auto tpi = targets.begin();
-  while(getline(ss, str, ' ')) {
-   if(ipi != inputs.end())
-    { ipi++->push_back(stod(str)); continue; }
-   if(tpi != targets.end()) tpi++->push_back(stod(str));
-  }
-  if(ipi != inputs.end() or tpi != targets.end())
-   throw std::length_error("inconsistent pattern length");
- }
+ load_patterns(inputs, targets);
 
- rpn.load_patterns(inputs, targets);
  DBG(0) DOUT() << "training patterns read and loaded, starting convergence..." << endl;
- rpn.converge(stoul(opt[0].str()));
+ DBG(1) DOUT() << *this << endl;
+ converge(stoul(opt()[0].str()));
 
- if(rpn.global_error() > rpn.target_error()) {
-  cerr << "Rpnn could not converge for " << rpn.epoch()
-       << " epochs (err: " << rpn.global_error() << ") - not saving" << endl;
-  exit(EXT_CDNTCV);
- }
- cout << "Rpnn has converged at epoch " << rpn.epoch()
-      << " with error: " << rpn.global_error() << endl;
+ if(&bouncer() == &native_bouncer())                            // blm not engaged
+  if(global_error() > target_error()) {
+   cout << "Rpnn could not converge for " << epoch()
+        << " epochs (err: " << global_error() << ") - not saving" << endl;
+   exit(EXT_CDNTCV);
+  }
 
- ofstream file(opt[CHR(OPT_DMP)].str(), ios::binary);
- file << noskipws << Blob(rpn);                                 // dump NN to file
+ cout << (&bouncer() == &native_bouncer()?
+           "Rpnn has converged at epoch ":
+           "Rpnn found best local minimum, combined total epochs ")
+       << epoch() << " with error: " << global_error() << endl;
 
- DBG(0) DOUT() << "dumped rpn brains into file: " << opt[CHR(OPT_DMP)].str() << endl;
+ ofstream file(opt()[CHR(OPT_DMP)].str(), ios::binary);
+ file << noskipws << Blob(blm_, *this, cnv_);                   // dump NN to file
+
+ DBG(0) DOUT() << "dumped rpn brains into file: " << opt()[CHR(OPT_DMP)].str() << endl;
+ return *this;
 }
 
 
 
-void run_preserved(Rpnn &rpn, Getopt &opt) {
+bool Rpn::read_patterns_(vvDouble &ip, vvDouble &tp) {
+ // when both params given read from cin input and target patterns until EOF
+ // when only input param is given (interactive input read), read only 1 line into front's vector
+ // return false (upon EOF) - meaningful only in the interactive mode
+ if(cnv_.empty())                                               // this only would be the case in
+  cnv_.resize(ip.size() + tp.size());                           // learning mode
+
+ DBG(0) {
+  if(&tp == &Rpn::dummy_tp) DOUT() << "read next input pattern: " << endl;
+  else DOUT() << "start reading training patterns ("
+              << ip.size() << " inputs + " << tp.size() << " outputs)..." << endl;
+ }
+
+ string str, dbgstr;
+ while(getline(cin, str)) {
+  str = regex_replace(str, std::regex{R"([\s,;=]+)"}, " ");
+  str = regex_replace(str, std::regex{R"(^ +)"}, "");
+  if(str.empty()) continue;
+  if(DBG()(0)) dbgstr = str;                                   // for later dbg output
+
+  stringstream ss(str);
+  auto cvi = cnv_.begin();
+  auto ipi = ip.begin();
+  auto tpi = tp.begin();
+  while(getline(ss, str, ' ')) {
+   if(ipi != ip.end()) {
+    ipi->push_back((*cvi++)(str));
+    if(&tp != &dummy_tp) ++ipi;                                 // learning mode
+    else if(cvi == cnv_.end()) break;                           // training mode, prevent segfault
+    continue;
+   }
+   if(&tp == &dummy_tp) break;                                  // training mode
+   if(tpi != tp.end())
+    tpi++->push_back((*cvi++)(str));
+  }
+  if(&tp == &dummy_tp)
+   { DBG(0) DOUT() << "read input values: " << dbgstr << endl; return true; }
+  if(ipi != ip.end() or tpi != tp.end())
+   throw std::length_error("insufficient input");
+ }
+
+ DBG(0) DOUT() << "read " << ip.front().size() << " pattern(s)" << endl;
+ return false;
+}
+
+
+
+Rpn & Rpn::run(void) {
  // read-restore rpn from file and activate its inputs
- DEBUGGABLE()
 
- Blob b(istream_iterator<char>(ifstream{opt[CHR(OPT_RDF)].str(), ios::binary}>>noskipws),
-        istream_iterator<char>{});                          // read NN from file to blob
- b.restore(rpn);                                            // de-serialize blob into rpn
+ Blob b(istream_iterator<char>(ifstream{opt()[CHR(OPT_RDF)].str(), ios::binary}>>noskipws),
+        istream_iterator<char>{});                              // read NN from file to blob
+ b.restore(blm_, *this, cnv_);                                  // de-serialize blob into rpn
 
- DBG(0) DOUT() << "reinstated rpn brains from file: " << opt[CHR(OPT_RDF)].str() << endl;
- DBG(1) DOUT() << rpn << endl;
+ for(auto &c: cnv_) c.roundup(opt()[CHR(OPT_RUP)].hits() > 0);
+
+ DBG(0) DOUT() << "reinstated rpn brains from file: " << opt()[CHR(OPT_RDF)].str() << endl;
+ DBG(1) DOUT() << *this << endl;
+ DBG(0) DOUT() << "cnv_.size(): " << cnv_.size() << endl;
 
  // run input patterns
- size_t ip = distance(++rpn.neurons().begin(), rpn.effectors());// number of receptors
- vector<double> inputs;
- inputs.reserve(ip);
+ size_t ip = receptors_count();
+ DBG(0) DOUT() << "receptors_count: " << ip << endl;
+ vvDouble inputs(1);
 
- string str;
- while(getline(cin, str)) {
-  str = regex_replace(str, std::regex{R"([\s,]+)"}, " ");
-  if(str == " " or str.empty()) continue;                       // blank line
-  stringstream ss(str);
-  inputs.clear();
-  while(getline(ss, str, ' '))                                  // parse read line
-   inputs.push_back(stod(str));
-  if(inputs.size() != ip)
-   throw std::length_error("insufficient inputs");
+ while(read_patterns_(inputs)) {
+  if(inputs.front().size() > ip) inputs.front().resize(ip);
 
-  rpn.activate(inputs);
+  activate(inputs.front());
 
+  // output activation result(s)
   string dlm("");
-  for(auto ons = distance(rpn.output_neurons(), rpn.neurons().end()), i = 0l; i < ons; ++i) {
-   cout <<  dlm << (opt[CHR(OPT_RUP)].hits() == 0?  rpn.out(i): floor(rpn.out(i) + 0.5));
+  for(size_t ons = output_neurons_count(), i = 0l; i < ons; ++i) {
+   cout <<  dlm << cnv_[i + ip](out(i));
    dlm = " ";
   }
   cout << endl;
+  inputs.front().clear();
  }
+
+ return *this;
 }
+
+
+
+
+
+
+
 
 
 
