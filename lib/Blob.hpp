@@ -224,21 +224,21 @@
 //
 //      void serialize(Blob &__blob__) const {
 //          __blob__.__push_host__(this);
-//         __blob__.preserve_addr(this); \
+//         __blob__.preserve_addr(this);
 //          __blob__.append(a);
 //          __blob__.append(b);
 //          __blob__.append(c);
 //          __blob__.__pop_appended__();
-//         if(__blob__.__is_top_serializer__()) __blob__.serialize_ptrs(); \
+//         if(__blob__.__is_top_serializer__()) __blob__.serialize_ptrs();
 //      }
 //      void deserialize(Blob &__blob__) {
 //          __blob__.__push_host__(this);
-//         __blob__.restore_addr(this); \
+//         __blob__.restore_addr(this);
 //          __blob__.restore(a);
 //          __blob__.restore(b);
 //          __blob__.restore(c);
 //          __blob__.__pop_restored__();
-//         if(__blob__.__is_top_deserializer__()) __blob__.deserialize_ptrs(); \
+//         if(__blob__.__is_top_deserializer__()) __blob__.deserialize_ptrs();
 //      }
 //
 
