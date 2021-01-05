@@ -35,13 +35,14 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
     * [`rpn` operations](https://github.com/ldn-softdev/Rpnn#rpn-operations)
       * [learning mode](https://github.com/ldn-softdev/Rpnn#learning-mode)
       * [trained mode](https://github.com/ldn-softdev/Rpnn#trained-mode)
-      * [Hello World!](https://github.com/ldn-softdev/Rpnn#hello-world)
-      * [Multi-class](https://github.com/ldn-softdev/Rpnn#multi-class)
     * [`rpn` options and parameters](https://github.com/ldn-softdev/Rpnn#rpn-options-and-parameters)
       * [Default parameters](https://github.com/ldn-softdev/Rpnn#default-parameters)
       * [Configuring NN Topology](https://github.com/ldn-softdev/Rpnn#configuring-nn-topology)
         * [Growing and pruning synapses](https://github.com/ldn-softdev/Rpnn#Growing-and-pruning-synapses)
-2. [C++ user interface](...)
+2. Study Examples 
+    * [Hello World!](https://github.com/ldn-softdev/Rpnn#hello-world)
+    * [Multi-class](https://github.com/ldn-softdev/Rpnn#multi-class)
+3. [C++ user interface](...)
 
 
 ## cli toy
@@ -111,123 +112,50 @@ bash $
 ### Manual installation
 1. Download, or clone the repo
 2. compile using _C++14_ or later:
+    * _MacOS:_
     ```bash
     bash $ c++ -o rpn -Wall -Wextra -std=c++14 -Ofast rpn.cpp
     bash $
     ```
-
+    * _Linux (relocatable image):_
+    ```bash
+    bash $ c++ -o rpn -Wall -std=gnu++17 -Ofast -static -Wl,--whole-archive -lrt -pthread -lpthread -Wl,--no-whole-archive rpn.cpp
+    bash $
+    ```
+    
 ### `rpn` operations
 `rpn` operates in two modes:
 1. learning mode
 2. trained mode
 
 #### Learning mode
-In the learning mode `rpn` learns from the provided input/targets samples and once the solution is found (`rpn` successfully converges) it dumps its
-trained brains into the file (default file is `rpn.bin`)
+In the learning mode `rpn` learns from the provided input-target samples and once the solution is found (`rpn` successfully converges) it dumps its
+trained brains into the file (default file is `rpn.bin`, option `-f` steers the output filename)
 
-Training pattern inputs are read line-by-line, each line containing _input and target values_, so that the number of input values corresponds to the
+Training patterns are read line-by-line, each line containing _input and target values_, so that the number of input values corresponds to the
 number of receptors in the configured topology, and the number of target values corresponds to the number or output neurons. The values on the input
-line should be separated with blank space, optionally with `,` or `=` symbols
-(note: there's no semantical significance for separators, so they could be interchanged/duplicated freely)
+line should be separated either with blank space, or optionally with `,` or `;`, or `=` symbols (separators could be specified using `-S` option
+[REGEX notation])
+> note: there's no semantical significance for separators, so they could be interchanged/duplicated freely
 
-For example, say your topology has 2 receptors and 1 output neuron, then any of following input lines are fine:
+For example, say your topology has _2 receptors_ and _1 output neuron_, then any of following input lines are fine:
 ```
 0 0 0
 0, 1, 1
-1,0 = 1
+1,0 =1
 1==1,,0
 ```
-The last line though might be confusing, as it still facilitates two inputs (`1`, `1`) and a single output (`0`), so apply your discretion when
+The last line though might be confusing, as it still facilitates two inputs (`1`, `1`) and one single output (`0`), so apply your discretion when
 using value separators.
 
 If `rpn` does not find a solution (fails to converge), then it does not dump its brains into the file (then you should adjust parameters,
-e.g.: increase epochs, alter target error, change topology, etc). 
+e.g.: increase epochs, alter target error, change topology, etc) - that applies though only when searching for a global minimum.
 
 #### Trained mode
 To start `rpn` in a trained mode, you need to give it a parameter `-r` followed by the file name where `rpn` brains are (default is `rpn.bin`)
 in the trained mode `rpn` accepts the input lines the same way like in the _Learning mode_, only the values on each line here are input patterns
-only (no target patterns this time)
-
-#### Hello World!
-_"Hello World!"_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
-
-Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
-following topology is required:
-
-    
-        input1 -> R---H
-                   \ / \
-                    X   O -> output
-                   / \ /
-        input2 -> R---H
-    
-That topology is made of 3 layers:  
-  - 1st layer is made of 2 receptors (`R`)  
-  - 2nd layer is made of 2 hidden neurons (`H`)  
-  - and finally the 3rd layer is made of a single output neuron (`O`).
-Thus, it could be expressed to `rpn` as `-t 2,2,1` (note: no spaces between numbers). `rpn` provides a full-mesh synapse connectivity between
-layers.
-
-And here we're good to run our first data sample:
-```bash
-bash $ <<<"
-0, 0 = 1
-1, 0 = 0
-0, 1 = 0
-1, 1 = 1
-" rpn -t2,2,1
-Rpnn has converged at epoch 17 with error: 0.000299919
-bash $ 
-```
-Now file `rpn.bin` contains the brain dump of the trained pattern and could be reused on the input data:
-```bash
-bash $ <<<"
-0 0
-1 1
-0 1
-" rpn -u -r rpn.bin
-1
-1
-0
-bash $
-```
-> As you might have noticed, `rpn` was trained for _NOT XOR_ function instead
-
-That shows that the network has learnt the training material properly.
-
-
-#### Multi-class
-The above example illustrates a _binary_ classification, though it's not the only possible type of classification, sometimes tasks require multiple classes.
-E.g., the same solution could be expressed as 3 classes:
-
-a) set _class1_ when the inputs are all zero (`0`,`0`)  
-b) set _class2_ when the inputs vary (`1`,`0`, or `1`,`0`)  
-c) set _class3_ when the inputs are all ones (`1`,`1`)  
-
-This type of classification require setting the logistic of all 3 output neurons (one output neuron per class) to _Softmax_ activation function (default is
-`Sigmoid` for all neurons) and the cost function to be _Cross-Entropy_ (default is _Sum of Squared Errors_ - `Sse`):
-```bash
-bash $ <<<"
-0,0 = 1 0 0
-1,0 = 0 1 0
-0,1 = 0 1 0
-1,1 = 0 0 1
-" rpn -t2,2,3 -o Softmax -c Xntropy
-Rpnn has converged at epoch 22 with error: 0.000758367
-bash $ 
-```
-Now, the trained network will display all 3 classes (output neurons):
-```bash
-bash $ <<<"
-0 0        
-1 1        
-0 1        
-" rpn -ur rpn.bin
-1 0 0
-0 0 1
-0 1 0
-bash $ 
-```
+(if any other values are present on the same line, those will be ignored)  
+> if option `-r` is given the others will be ignored
 
 
 ### `rpn` options and parameters
@@ -243,7 +171,7 @@ bash $ rpn -d
 .configure_rpn(), normalize inputs: true [-1 to +1]
 .configure_rpn(), LM trail size: 4
 .configure_rpn(), cost function: cf_Sse
-.configure_rpn(), randomizer seed: timer (1607111744408880)
+.configure_rpn(), randomizer seed: timer (1609874629690479)
 .configure_rpn(), epochs to run: 100000
 .run_convergence(), start reading training patterns...
 
@@ -482,6 +410,87 @@ to do it via options `-g`, `-G`:
 
 option `-p N,M` allows pruning a single synapse at the neuron N for the (address of) neuron M
 
+### 
+#### Hello World!
+_"Hello World!"_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
+
+Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
+following topology is required:
+
+    
+        input1 -> R---H
+                   \ / \
+                    X   O -> output
+                   / \ /
+        input2 -> R---H
+    
+That topology is made of 3 layers:  
+  - 1st layer is made of 2 receptors (`R`)  
+  - 2nd layer is made of 2 hidden neurons (`H`)  
+  - and finally the 3rd layer is made of a single output neuron (`O`).
+Thus, it could be expressed to `rpn` as `-t 2,2,1` (note: no spaces between numbers). `rpn` provides a full-mesh synapse connectivity between
+layers.
+
+And here we're good to run our first data sample:
+```bash
+bash $ <<<"
+0, 0 = 1
+1, 0 = 0
+0, 1 = 0
+1, 1 = 1
+" rpn -t2,2,1
+Rpnn has converged at epoch 17 with error: 0.000299919
+bash $ 
+```
+Now file `rpn.bin` contains the brain dump of the trained pattern and could be reused on the input data:
+```bash
+bash $ <<<"
+0 0
+1 1
+0 1
+" rpn -u -r rpn.bin
+1
+1
+0
+bash $
+```
+> As you might have noticed, `rpn` was trained for _NOT XOR_ function instead
+
+That shows that the network has learnt the training material properly.
+
+
+#### Multi-class
+The above example illustrates a _binary_ classification, though it's not the only possible type of classification, sometimes tasks require multiple classes.
+E.g., the same solution could be expressed as 3 classes:
+
+a) set _class1_ when the inputs are all zero (`0`,`0`)  
+b) set _class2_ when the inputs vary (`1`,`0`, or `1`,`0`)  
+c) set _class3_ when the inputs are all ones (`1`,`1`)  
+
+This type of classification require setting the logistic of all 3 output neurons (one output neuron per class) to _Softmax_ activation function (default is
+`Sigmoid` for all neurons) and the cost function to be _Cross-Entropy_ (default is _Sum of Squared Errors_ - `Sse`):
+```bash
+bash $ <<<"
+0,0 = 1 0 0
+1,0 = 0 1 0
+0,1 = 0 1 0
+1,1 = 0 0 1
+" rpn -t2,2,3 -o Softmax -c Xntropy
+Rpnn has converged at epoch 22 with error: 0.000758367
+bash $ 
+```
+Now, the trained network will display all 3 classes (output neurons):
+```bash
+bash $ <<<"
+0 0        
+1 1        
+0 1        
+" rpn -ur rpn.bin
+1 0 0
+0 0 1
+0 1 0
+bash $ 
+```
 
 
 
