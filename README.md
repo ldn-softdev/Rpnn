@@ -19,7 +19,15 @@ a number of advantages over the standard backprop mechanism:
 - the framework also support multi-class classification (support of _Softmax_ logistic at the output perceptron)
 - the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence
 - the framework provides a weight bouncer class capable of finding a better (deeper) minimum in absence of the global one
-(by running concurent instances and searching for the deepest local minimum)
+(by running concurent instances and searching for the deepest local minimum)  
+
+#
+
+<p align="center">
+Given right configuration (topology, parameters) and enough resources (cpu cores, time)<br>`Rpnn` guaratees finding the best or near the best solutions
+</p>
+
+#
 
 ### Content:
 1. [cli toy](https://github.com/ldn-softdev/Rpnn#cli-toy)
