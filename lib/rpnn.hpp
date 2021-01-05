@@ -972,7 +972,7 @@ double rpnnNeuron::tf_Softmax(double x, rpnnNeuron* n) {  // only for output per
  for(auto it = ++n->nn().neurons().rbegin(); it->transfer_function() == tf_Softmax; ++it)
   it->out_ = exp(it->out() - maxv - lse);                       // correct values for prior outputs
  // explanation how a trivial softmax became so tricky is here:
- // http://stackoverflow.com/questions/9906136/\
+ // http://stackoverflow.com/questions/9906136/
  // implementation-of-a-softmax-activation-function-for-neural-networks
 
  return exp(x - maxv - lse);                             // return the last one
