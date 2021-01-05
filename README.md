@@ -41,7 +41,10 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
         * [Target error](https://github.com/ldn-softdev/Rpnn#target-error)
         * [Inputs normalization](https://github.com/ldn-softdev/Rpnn#inputs-normalization)
         * [Local Minimum traps detection](https://github.com/ldn-softdev/Rpnn#local-minimum-traps-detection)
-        * [Cost (error) function](https://github.com/ldn-softdev/Rpnn#Cost-error-function)	
+        * [Cost (error) function](https://github.com/ldn-softdev/Rpnn#Cost-error-function)
+        * [Generic parameters](https://github.com/ldn-softdev/Rpnn#generic-parameters)
+        * [Best local minimum search](https://github.com/ldn-softdev/Rpnn#best-local-minimum-search)
+        * [Seed for randomizer](https://github.com/ldn-softdev/Rpnn#seed-for-randomizer)
       * [Configuring NN Topology](https://github.com/ldn-softdev/Rpnn#configuring-nn-topology)
         * [Growing and pruning synapses](https://github.com/ldn-softdev/Rpnn#Growing-and-pruning-synapses)
 2. Study Examples 
@@ -293,15 +296,60 @@ Default cost function to evaluate convergence (across all the output neurons) is
 Another cost function is _Cross Entropy_ (`Xntropy`)
 
 Typically _Cross Entropy_ is used togerther with `Softmax` logistic functions of the output neurons.  
--\ to alter the cost function, use `-c Xntropy`
+\- to alter the cost function, use `-c Xntropy`
+
+##### Generic parameters
+```
+.configure(), generic parameter BLM_RDCE: 5
+.configure(), generic parameter DW_FACTOR: 1.1618
+.configure(), generic parameter LMD_PTRN: 0.001
+.configure(), generic parameter MAX_STEP: 1000
+.configure(), generic parameter MIN_STEP: 1e-06
+.configure(), generic parameter NRM_MAX: 1
+.configure(), generic parameter NRM_MIN: -1
+```
+
+`Rpnn` framework has a few default parameters, which normally do not require much of fiddling. However, any of those also could be modified usign `-P` option.  
+Say, you want to try another input normalization range, e.g.: `-50, +50`. Then either way will do it:  
+ - `-P NRM_MAX=50 -P NRM_MIN:50` - separator between parameter name and value could be either `:` or `=`,
+ - `-P NRM_MAX:50,-50` - if multiple values given, then those applied on the respective parameters in the displayed order starting from the given one (the order
+ is the same on the help screen `-h`)
+
+Anoter example, it's possible to alter all the values in one go, like this:  
+`-P BLM_RDCE:'15, 1.5, 0.01, 1e+5, 1e-10, 20, -20' `
+> note: quotes are used because of the spaces separating parameters 
+ 
+Description:
+ * `BLM_RDCE` - reduce factor for _best local minimum_ search mode - varies from 1 (exclusively) to to any higher number - the higher number,
+ the harder `Rpnn` will try finding the best (deepest) LM (i.e. more attempt will be made). The factor is exponential though, so numbers
+ above 10 might already severily impact resolutino time (deppends on many other factros too - size of the topology, size of the `LMD_PTRN`, etc)
+ * `DW_FACTOR` - a momentum factor to increase synapse's _delta weights_ if gradient sign did not change. This factor also has an exponential effect
+ and setting it to too big values may result that `Rpnn` will be overshooting minimums too frequently. Setting it to values lower or too close to 1
+ does not make sense either - slow momentum will result in slower convergence as well make `Rpnn` suffer from
+ [_vanishing gradient_](https://en.wikipedia.org/wiki/Vanishing_gradient_problem) problem
+ * `LMD_PTRN` - a percentage factor for _Local Minimum trap detection_ mechanism - how accurately the mechanism will try recognizing error
+ looping behavior. The smaller value the more accurate detection is, the higher value provides more coarse looping detection (which might
+ result in an earlier detection but also a false-positive detection too)
+ * `MAX_STEP`
+ * `MIN_STEP` - these two provide upper and lower capping for _delta weight_ in synapses
+ * `NRM_MAX`
+ * `NRM_MIN` - these two provide _max_, _min_ normalization boundary for input pattern values normalization. Setting them to the same (any) value
+ results in disabling input normalization (which is not advisable)
 
 #
-
+##### Best local minimum search
 ```
-.configure_rpn(), randomizer seed: timer (1607090033445218)
+.configure(), blm (threads) engaged: no
+```
+
+#
+##### Seed for randomizer
+```
+.configure(), randomizer seed: timer (1609875073812804)
 ```
 A seed for randomization (weights initializing) is taken from the timer, though for some debugging (or research) purposes it might be required 
 running multiple convergences with the same seed, which could be done using option `-s <seed>`
+>note: though setting the same seed won't provide deterministic behavior in the _BLM_ (option `-b`), due to inability to control concurent convergence
 
 #
 option `-u` rounds up output result (in trained mode) to an integer, w/o it `rpn` will display the resulting value (with the achieved accuracy):
@@ -449,7 +497,7 @@ option `-p N,M` allows pruning a single synapse at the neuron N for the (address
 #### Hello World!
 _"Hello World!"_ task in the NN is the training of _XOR_ function (it's the simplest task that requires a multi-perceptron to converge).
 
-Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g., to train `rpn` for the _XOR_ function,
+Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g.: to train `rpn` for the _XOR_ function,
 following topology is required:
 
     
@@ -496,7 +544,7 @@ That shows that the network has learnt the training material properly.
 
 #### Multi-class
 The above example illustrates a _binary_ classification, though it's not the only possible type of classification, sometimes tasks require multiple classes.
-E.g., the same solution could be expressed as 3 classes:
+E.g.: the same solution could be expressed as 3 classes:
 
 a) set _class1_ when the inputs are all zero (`0`,`0`)  
 b) set _class2_ when the inputs vary (`1`,`0`, or `1`,`0`)  
