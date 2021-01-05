@@ -41,6 +41,7 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
         * [Target error](https://github.com/ldn-softdev/Rpnn#target-error)
         * [Inputs normalization](https://github.com/ldn-softdev/Rpnn#inputs-normalization)
         * [Local Minimum traps detection](https://github.com/ldn-softdev/Rpnn#local-minimum-traps-detection)
+        * [Cost (error) function](https://github.com/ldn-softdev/Rpnn#Cost-error-function)	
       * [Configuring NN Topology](https://github.com/ldn-softdev/Rpnn#configuring-nn-topology)
         * [Growing and pruning synapses](https://github.com/ldn-softdev/Rpnn#Growing-and-pruning-synapses)
 2. Study Examples 
@@ -284,12 +285,15 @@ sometimes requires adjustments (to a shorter facter, e.g. 2 or 3 - to speedup co
 convergence itself (the bigger trail size, the slower training runs) - finding a right balance is the subject of some research for a given task.
 
 #
-
+##### Cost (error) function
 ```
-.configure_rpn(), cost function: cf_Sse
+.configure(), cost function: cf_Sse
 ```
 Default cost function to evaluate convergence (across all the output neurons) is _Sum of Squared Errors_ (`Sse`).
 Another cost function is _Cross Entropy_ (`Xntropy`)
+
+Typically _Cross Entropy_ is used togerther with `Softmax` logistic functions of the output neurons.  
+-\ to alter the cost function, use `-c Xntropy`
 
 #
 
