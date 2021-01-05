@@ -466,9 +466,9 @@ bool Rpn::read_patterns_(vvDouble &ip, vvDouble &tp) {
   cnv_.resize(ip.size() + tp.size());                           // learning mode
 
  DBG(0) {
-  if(&tp == &Rpn::dummy_tp) DOUT() << "read next input pattern: " << endl;
-  else DOUT() << "start reading training patterns ("
-              << ip.size() << " inputs + " << tp.size() << " outputs)..." << endl;
+  if(&tp != &Rpn::dummy_tp)
+   DOUT() << "start reading training patterns ("
+          << ip.size() << " inputs + " << tp.size() << " outputs)..." << endl;
  }
 
  string str, dbgstr;
