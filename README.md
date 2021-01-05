@@ -1,7 +1,7 @@
 
 # `Rpnn` (under construction)
-This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface.  
-No dependencies, fully contained implementation.
+This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface, 
+no dependencies - fully contained implementation.
 
 ##### Enhancement requests and/or questions are more than welcome: *ldn.softdev@gmail.com*
 
@@ -17,7 +17,9 @@ a number of advantages over the standard backprop mechanism:
 ([why inputs may require normalization](https://github.com/ldn-softdev/Rpnn#default-parameters))
 - the framework is fully and easily SERSES'able [link TBU]
 - the framework also support multi-class classification (support of _Softmax_ logistic at the output perceptron)
-- the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence 
+- the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence
+- the framework provides a weight bouncer class capable of finding a better (deeper) minimum in absence of the global one
+(by running concurent instances and searching for the deepest local minimum)
 
 ### Content:
 1. [cli toy](https://github.com/ldn-softdev/Rpnn#cli-toy)
