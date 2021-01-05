@@ -37,6 +37,9 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
       * [trained mode](https://github.com/ldn-softdev/Rpnn#trained-mode)
     * [`rpn` options and parameters](https://github.com/ldn-softdev/Rpnn#rpn-options-and-parameters)
       * [Default parameters](https://github.com/ldn-softdev/Rpnn#default-parameters)
+        * [Topology](https://github.com/ldn-softdev/Rpnn#topology)
+        * [Target error](https://github.com/ldn-softdev/Rpnn#target-error)
+        * [Inputs normalization](https://github.com/ldn-softdev/Rpnn#inputs-normalization)
       * [Configuring NN Topology](https://github.com/ldn-softdev/Rpnn#configuring-nn-topology)
         * [Growing and pruning synapses](https://github.com/ldn-softdev/Rpnn#Growing-and-pruning-synapses)
 2. Study Examples 
@@ -119,7 +122,7 @@ bash $
     ```
     * _Linux (relocatable image):_
     ```bash
-    bash $ c++ -o rpn -Wall -std=gnu++17 -Ofast -static -Wl,--whole-archive -lrt -pthread -lpthread -Wl,--no-whole-archive rpn.cpp
+    bash $ c++ -o rpn -Wall -std=gnu++14 -Ofast -static -Wl,--whole-archive -lrt -pthread -lpthread -Wl,--no-whole-archive rpn.cpp
     bash $
     ```
     
@@ -164,16 +167,25 @@ in the trained mode `rpn` accepts the input lines the same way like in the _Lear
 `rpn` has following default parameters when none given:
 ```
 bash $ rpn -d
-.configure_rpn(), receptors: 1
-.configure_rpn(), effectors: 1
-.configure_rpn(), output neurons: 1
-.configure_rpn(), target error: 0.001
-.configure_rpn(), normalize inputs: true [-1 to +1]
-.configure_rpn(), LM trail size: 4
-.configure_rpn(), cost function: cf_Sse
-.configure_rpn(), randomizer seed: timer (1609874629690479)
-.configure_rpn(), epochs to run: 100000
-.run_convergence(), start reading training patterns...
+.configure(), receptors: 1
+.configure(), effectors: 1
+.configure(), output neurons: 1
+.configure(), target error: 0.001
+.configure(), normalize inputs: true [-1 to +1]
+.configure(), LM trail size: 4
+.configure(), cost function: cf_Sse
+.configure(), generic parameter BLM_RDCE: 5
+.configure(), generic parameter DW_FACTOR: 1.1618
+.configure(), generic parameter LMD_PTRN: 0.001
+.configure(), generic parameter MAX_STEP: 1000
+.configure(), generic parameter MIN_STEP: 1e-06
+.configure(), generic parameter NRM_MAX: 1
+.configure(), generic parameter NRM_MIN: -1
+.configure(), blm (threads) engaged: no
+.configure(), bouncer: native
+.configure(), randomizer seed: timer (1609875073812804)
+.configure(), epochs to run: 100000
+.read_patterns_(), start reading training patterns (1 inputs + 1 outputs)...
 
 ^Caborted due to user interrupt received: SIGINT (2)
 bash $ 
@@ -181,37 +193,51 @@ bash $
 
 #### Default parameters
 
-- Number of receptors 1
-- Number of effectors 1 (effector is a non-receptor neuron)
-- Number of output neurons 1 (output neuron is also effector)
-thus such default topology is expressed as an option `-t 1,1` (there are only 2 neurons in such topology)
+##### Topology
+```
+.configure(), receptors: 1
+.configure(), effectors: 1
+.configure(), output neurons: 1
+```
+- Number of receptors: 1
+- Number of effectors: 1 (effector is a non-receptor neuron)
+- Number of output neurons: 1 (output neuron is also effector)  
+thus such default topology is expressed as an option `-t 1,1` (there are only 2 neurons in such topology)  
+> well, there's one more hidden neuron ("the one") which is always implicitely present and is interconnected to all others
+
+option `-t` lets setting up topology and interconnects adjacent layers (perceptrons) in a full mesh 
 
 #
-
+##### Target error
 ```
 .configure_rpn(), target error: 0.001
 ```
-\- option `-e` allows setting the target error for convergence. Some tasks might not even have global minimum solutions (typically it'll be
-a function approximations/regressions), thus adjusting target error (to the higher end) might be required.
-> next version of the framework will have an option of finding the deepest local minimum in absence of a global one (i.e. the manual weight adjustments
-won't be required)
+\- option `-e` allows setting the target error for convergence  
+> network considers convergence done when the network's global error (i.e. the error across all the output neurons) drops below the target error
+
+Some tasks might not even have a global minimum solution (e.g.: approximations/regressions, or even classifications with a weak correlation),
+thus manual adjusting target error (to the higher end) might be required.
+
+Though adjusting target error manually could be tedious and non-efficient, `rpn` provides an automatic way for searching the deepest local minimum
+in absense of a global one (see option `-b`)
 
 #
+##### Inputs normalization
 
 ```
 .configure_rpn(), normalize inputs: true [-1 to +1]
 ```
-\- Inputs normalization is on by default and could be turned off with option `-n 0,0`, or `-n 1,1` (any combination where `min` and `max` parameters
-are the same). Given that the logistic functions often are bounded type (`sigmoid`, `tanh`, etc) the faster convergence occurs when input's _max_ and _min_
-values are mapped around logistic's zero point. Default input normalization values are `-n -1,+1`.
+\- _Inputs normalization_ is on by default and could be turned off with option `-n 0,0`, or `-n 1,1` (any combination where `min` and `max` parameters
+are the same). Given that the logistic function often is a bounded type (e.g.: `sigmoid`, `tanh`, etc) the faster convergence occurs when input's
+_max_ and _min_ values are mapped around the logistic's zero point. Default input normalization values are `-n -1,+1`.
 
-Also, Rpnn limits _delta weight_ step's _min_ and _max_ values to `1.e-6` and `1.e+3` respectively:
+Also, Rpnn limits _delta weight_ step's _min_ and _max_ values to `1.e-6` and `1.e+3` respectively (though such default parameters could be
+altered with -P option):
 ```
 #define RPNN_MIN_STEP   1.e-6
 #define RPNN_MAX_STEP   1.e+3
 ```
 Thus, very small or very large input values w/o normalization simply won't converge - the input normalization ensures respective resolution precision.
-> next version of the framework will provide an option to alter such parameters (i.e. _min_ and _max delta weight_ steps)
 
 For example, this converges fine with the normalization on (default):
 ```
@@ -239,6 +265,9 @@ bash $ <<<"
 Rpnn could not converge for 100000 epochs (err: 1.00001) - not saving
 bash $ 
 ```
+
+> btw, output normalization is always on and there no way to turn it off: the output logistic functions requirement is always to be a bounded type
+(in this tool implementation, not in `Rpnn` class), thus output normalization helps to have any scale of output parameters
 
 #
 
