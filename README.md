@@ -19,12 +19,12 @@ a number of advantages over the standard backprop mechanism:
 - the framework also support multi-class classification (support of _Softmax_ logistic at the output perceptron)
 - the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence
 - the framework provides a weight bouncer class capable of finding a better (deeper) minimum in absence of the global one
-(by running concurent instances and searching for the deepest local minimum)  
+(by running concurrent instances and searching for the deepest local minimum)  
 
 #
 
 <p align="center">
-Given right configuration (topology, parameters) and enough resources (cpu cores, time)<br>`Rpnn` guaratees finding the best or near the best solutions
+Given right configuration (topology, parameters) and enough resources (cpu cores, time)<br>`Rpnn` guarantees finding the best or near the best solutions
 </p>
 
 #
@@ -60,8 +60,8 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
 ## cli toy
 This package provides a simple unix cli tool which allows running `Rpnn` from shell and toying with your data.
 This cli tool is probably the easiest way to introduce yourself to classical NN (no programming skill required),
-however it's also could be used in all the areas where backprop is applicable (classification, regressions, aproximations,
-prediction, etx):
+however it's also could be used in all the areas where backprop is applicable (classification, regressions, approximations,
+prediction, etc):
 ```
 bash $ rpn -h
 usage: rpn [-adhu] [-G N,M] [-P param] [-S separators] [-b threads] [-c cost_func] [-e target_err]
@@ -172,8 +172,8 @@ in the trained mode `rpn` accepts the input lines the same way like in the _Lear
 (if any other values are present on the same line, those will be ignored)  
 > if option `-r` is given the others will be ignored (save `-u`)
 
-Option `-u` instructs `rpn` to round up all the outputs (if real numbers used) to an interger part (in the trainded mode, of course); in case if
-outputs are symbolic enumerations, then show real convertion numbers instead 
+Option `-u` instructs `rpn` to round up all the outputs (if real numbers used) to an integer part (in the trained mode, of course); in case if
+outputs are symbolic enumerations, then show real conversion numbers instead 
 
 
 
@@ -219,7 +219,7 @@ bash $
 - Number of effectors: `1` (effector is a non-receptor neuron)
 - Number of output neurons: `1` (output neuron is also effector)  
 thus such default topology is expressed as an option `-t 1,1` (there are only 2 neurons in such topology)  
-> well, there's one more hidden neuron ("the one") which is always implicitely present and is interconnected to all others
+> well, there's one more hidden neuron ("the one") which is always implicitly present and is interconnected to all others
 
 option `-t` lets setting up topology and interconnects adjacent layers (perceptrons) in a full mesh
 
@@ -235,7 +235,7 @@ Some tasks might not even have a global minimum solution (e.g.: approximations/r
 thus manual adjusting target error (to the higher end) might be required.
 
 Though adjusting target error manually could be tedious and non-efficient, `rpn` provides an automatic way for searching the deepest local minimum
-in absense of a global one (see option `-b`)
+in absence of a global one (see option `-b`)
 
 #
 ##### Inputs normalization
@@ -306,7 +306,7 @@ convergence itself (the bigger trail size, the slower training runs) - finding a
 Default cost function to evaluate convergence (across all the output neurons) is _Sum of Squared Errors_ (`Sse`).
 Another cost function is _Cross Entropy_ (`Xntropy`)
 
-Typically _Cross Entropy_ is used togerther with `Softmax` logistic functions of the output neurons.  
+Typically _Cross Entropy_ is used together with `Softmax` logistic functions of the output neurons.  
 \- to alter the cost function, use `-c Xntropy`
 
 ##### Generic parameters
@@ -320,20 +320,20 @@ Typically _Cross Entropy_ is used togerther with `Softmax` logistic functions of
 .configure(), generic parameter NRM_MIN: -1
 ```
 
-`Rpnn` framework has a few default parameters, which normally do not require much of fiddling. However, any of those also could be modified usign `-P` option.  
+`Rpnn` framework has a few default parameters, which normally do not require much of fiddling. However, any of those also could be modified using `-P` option.  
 Say, you want to try another input normalization range, e.g.: `-50, +50`. Then either way will do it:  
  - `-P NRM_MAX=50 -P NRM_MIN:50` - separator between parameter name and value could be either `:` or `=`,
  - `-P NRM_MAX:50,-50` - if multiple values given, then those applied on the respective parameters in the displayed order starting from the given one (the order
  is the same on the help screen `-h`)
 
-Anoter example, it's possible to alter all the values in one go, like this:  
+Another example, it's possible to alter all the values in one go, like this:  
 `rpn -P BLM_RDCE:'15, 1.5, 0.01, 1e+5, 1e-10, 20, -20' ...`
 > note: quotes are used because of the spaces separating parameters (i.e., to dodge shell interpolation)
 
 Description:
  * `BLM_RDCE` - reduce factor for _best local minimum_ search mode - varies from `1` (exclusively) to to any higher number - the higher number,
  the harder `Rpnn` will try finding the best (deepest) LM (i.e. more attempt will be made). The factor is exponential though, so numbers
- above `10` might already severily impact resolutino time (deppends on many other factros too - size of the topology, size of the `LMD_PTRN`, etc)
+ above `10` might already severely impact resolution time (depends on many other factors too - size of the topology, size of the `LMD_PTRN`, etc)
  * `DW_FACTOR` - a momentum factor to increase synapse's _delta weights_ if gradient sign did not change. This factor also has an exponential effect
  and setting it to too big values may result that `Rpnn` will be overshooting minimums too frequently. Setting it to values lower or too close to `1`
  does not make sense either - slow momentum will result in slower convergence as well make `Rpnn` suffer from
@@ -353,15 +353,15 @@ Description:
 .configure(), blm (threads) engaged: no
 ```
 By default `rpn` will try finding a global minimum (convergence point, where the global error is close to zero - below target's error) and if it fails
-to find one - it won't save it's brains at the end. However, most of the tasks where backprops apply _do not have global minimum_. There the solution
+to find one - it won't save it's brains at the end. However, most of the tasks where backprops may apply _do not have global minimum_. There the solution
 sounds like this: find the deepest possible local minimum.
 
 The approach `Rpnn` takes in such case is running and tracking multiple convergences until local minimum is detected and then picking the convergence
-result with the smallest error (deepest found LM). It's implemented by running multiple instances of configured NN concurently (each instance will be
+result with the smallest error (deepest found LM). It's implemented by running multiple instances of configured NN concurrently (each instance will be
 run multiple times too).
 
 To enable such mode (a.k.a. _BLM search_) is to give option `-b` followed by the number of threads. if number `0` given (`-b0`), then the number of threads
-will correspondds to the maximum number of supported hardware threads (#cores times #threads per core).
+will corresponds to the maximum number of supported hardware threads (#cores times #threads per core).
 
 The target error (`-e`) in such case serves as a twofold exit criteria:
 - if NN able to converge below the target error (i.e. a global minimum is found)
@@ -377,8 +377,8 @@ Because _BLM search_ is suitable for finding even the global minimum, it does no
 .configure(), bouncer: native
 ```
 By default `rpn` will use a simple randomizer to update its weights before starting a new convergence (and when bouncing itself out of LM trap).
-For a reference there's another bouncer provided: it builds first a limited set of uniform weights distributions (acorss all the weights) and then
-uses them up (in a random order) untill all exhausted - that method is more deterministic than random weight bouncing in terms that it tries only a certain
+For a reference there's another bouncer provided: it builds first a limited set of uniform weights distributions (across all the weights) and then
+uses them up (in a random order) until all exhausted - that method is more deterministic than random weight bouncing in terms that it tries only a certain
 prescribed sets of weights distributions.
 
 To plug-in the alternative weight update function give `-a` option.
@@ -390,7 +390,7 @@ To plug-in the alternative weight update function give `-a` option.
 ```
 A seed for randomization (weights initializing) is taken from the timer, though for some debugging (or research) purposes it might be required
 running multiple convergences with the same seed, which could be done using option `-s <seed>`
-> note: though setting the same seed won't provide deterministic behavior in the _BLM_ (option `-b`), due to inability to control concurent convergence
+> note: though setting the same seed won't provide deterministic behavior in the _BLM_ (option `-b`), due to inability to control concurrent convergence
 
 #
 ##### Epochs to run
@@ -399,13 +399,13 @@ running multiple convergences with the same seed, which could be done using opti
 ```
 When NN tries once all the given input patterns and learns from them (by back-propagating the resulting error adjusting its weights towards the closer match)
 it's called an _epoch_. Because the _error plane_ is always smoothly differentiable, it inevitably leads towards the minimum either local or global
-(thanks to the _learning rule_), however, it certainly requires an _unknown_ number of such itterations (epochs). `Rpnn` typically reach the minimums quite
+(thanks to the _learning rule_), however, it certainly requires an _unknown_ number of such iterations (epochs). `Rpnn` typically reach the minimums quite
 quickly and then (if LMD is enabled) will try bouncing itself out of the found LM and will descend into another one.  
-To cap the number of such itterations the number of ephoch sets the limit. The maximum number of epochs is given as the only standalone attribute to Rpnn (if
+To cap the number of such iterations the number of epoch sets the limit. The maximum number of epochs is given as the only standalone attribute to `Rpnn` (if
 omitted, then default number `100000` is used).
 
 The above mostly applies when _BLM_ search is not engaged, otherwise, there the number of attempts is rather limited by the number of LM found (which is a
-combinations of 2 factors `BLM_RDCE` and _target error_), thogh setting ephoch number to a very shallow value (even in _BLM_) is not advisable, as it may
+combinations of 2 factors `BLM_RDCE` and _target error_), though setting epoch number to a very shallow value (even in _BLM_) is not advisable, as it may
 result in a premature end of convergence even before reaching the LM.
 
 
@@ -536,12 +536,13 @@ option `-p N,M` allows pruning a single synapse at the neuron N for the (address
 #### Other supported options
 
 - `-f <file>` - lets dumping trained `rpn` brains (upon a successful convergence) into the file of your choice (default output file is `rpn.bin`)
-- `-r <file>` - starts `rpn` in the trainde mode - reads and reinstate brains state entirely from the file, ready to read & run the input data
+- `-r <file>` - starts `rpn` in the trained mode - reads and reinstate brains state entirely from the file, ready to read & run the input data
 - `-S <separators>` - allows specifying a list of separators used for the input lines. Default are `\s,;=` (note the REGEX notation)
 
 
+#
 ### Study Examples
-Let's review a few of academical and real wordls examples
+Let's review a few of academical and real world examples
 
 #### Hello World!
 _"Hello World!"_ task in the NN is the training of _XOR_ function - it's the simplest task that requires a multi-perceptron to converge (why is that - is
@@ -551,11 +552,11 @@ out of scope of this tutorial, but you can easily google up
 Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g.: to train `rpn` for the _XOR_ function,
 following topology is required:
 
-        input1 -> R---H
-                   \ / \
-                    X   O -> output
-                   / \ /
-        input2 -> R---H
+        input1 -> (R)---(H)
+                     \ / \
+                      X   (O) -> output
+                     / \ /
+        input2 -> (R)---(H)
 
 That topology is made of 3 layers:
   - 1st layer is made of 2 receptors (`R`) - first layer is always a layer of receptors
@@ -627,8 +628,9 @@ bash $
 ```
 
 #### Classification as probability
-However, like it was mentioned before, it's quite rarre when the problem solution has a global minimum. Even for classification types of tasks the
-real world input data may contain duplicate and even confilicting data, Let's consider this input set (_NOT XOR_ with noisy inputs):
+However, like it was mentioned before, it's quite rare when the problem solution has a global minimum. Even for classification types of tasks the
+real world input data may contain duplicate and even conflicting data.  
+Let's consider this input set (_NOT XOR_ with noisy inputs):
 ```
 bash $ <<<"
 0, 0 = 1
@@ -669,20 +671,14 @@ bash $ <<<"
 1
 bash $ 
 ```
-\- as you see it resolved the problem chosing most probable outcome for the confilicint pattern, but what's the actual number for the problematic pattern?
+\- as you see it resolved the problem choosing most probable outcome for the conflicting pattern, but what's the actual number for the problematic pattern?
 ```
 bash $ <<<'1, 1' rpn -r rpn.bin
 0.666659
 bash $ 
 ```
-- it found a LM where the error corresponds to the probability of signal occurrence in the input. The pattern `1, 1` results in 0.66,6659% probabiliy
+\- it found a LM where the error corresponds to the probability of signal occurrence in the input. The pattern `1, 1` results in 0.66,6659% probability
 (of the output signal occurrence) in this case!
-
-
-
-
-
-
 
 
 
