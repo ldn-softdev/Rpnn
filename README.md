@@ -762,7 +762,7 @@ Typically the behavior of the _overtrained_ NN is attributed to following:
 \- then it's indeed could be that NN is overtrained, or the selected training set is _*unrepresentative*_ (e.g.: it could be made of data
 showing a strong input-output correlations while weak correlation data were left out)
 
-> Important: the computational power of the NN is driven by the number of synapses and not by the number of neurons!
+> Important: the computational power of the NN is driven mostly by the number of synapses and not so much by the number of neurons!
 
 
 
