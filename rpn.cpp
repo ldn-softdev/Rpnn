@@ -29,7 +29,7 @@
 using namespace std;
 
 #define PRGNAME "Resilient Propagation Neural network (https://github.com/ldn-softdev/Rpnn)"
-#define VERSION "1.02"
+#define VERSION "1.03"
 #define CREATOR "Dmitry Lyssenko"
 #define EMAIL "ldn.softdev@gmail.com"
 
@@ -84,17 +84,19 @@ class TwoWayConversion {
                          { return s2i_.empty(); }
     size_t              size(void) const
                          { return s2i_.size(); }
-    void                roundup(bool x)
-                         { ru_ = x; }
+    bool                roundup_toggle(void) const
+                         { return rut_; }
+    void                roundup_toggle(bool x)
+                         { rut_ = x; }
 
-    SERDES(TwoWayConversion, s2i_, i2s_, ru_)
+    SERDES(TwoWayConversion, s2i_, i2s_, rut_)
 
  protected:
     map<string, size_t> s2i_;
     vector<string> i2s_;
 
  protected:
-    bool                ru_{true};                              // roundup b4 converting to string?
+    bool                rut_{false};                            // roundup toggle flag
 };
 
 
@@ -112,16 +114,18 @@ double TwoWayConversion::operator()(const string & str) {
 
 string TwoWayConversion::operator()(double x) {
  // convert to string, round up before conversion if required
- auto to_str = [&](double x) {
+ auto to_str = [&](double x, bool rut = true) {
        stringstream ss;
-       ss << (ru_? floor(x + 0.5): x);
+       ss << (roundup_toggle() == rut? floor(x + 0.5): x);
        return ss.str();
       };
 
  if(i2s_.empty())                                               // no enumeration occurred
   return to_str(x);
- size_t idx = x + 0.5;
- return idx < i2s_.size()? i2s_[idx]: to_str(x);
+ size_t idx = x + 0.5;                                          // return symbolical values
+ return idx < i2s_.size()?
+         (roundup_toggle()? to_str(x, not roundup_toggle()) : i2s_[idx]):
+         to_str(x, roundup_toggle());
 }
 
 
@@ -512,7 +516,7 @@ Rpn & Rpn::run(void) {
         istream_iterator<char>{});                              // read from file to blob
  b.restore(blm_, *this, cnv_, sep_);                            // de-serialize blob
 
- for(auto &c: cnv_) c.roundup(opt()[CHR(OPT_RUP)].hits() > 0);
+ for(auto &c: cnv_) c.roundup_toggle(opt()[CHR(OPT_RUP)].hits() > 0);
 
  DBG(0) DOUT() << "reinstated rpn brains from file: " << opt()[CHR(OPT_RDF)].str() << endl;
  DBG(1) DOUT() << *this << endl;
