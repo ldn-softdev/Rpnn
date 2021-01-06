@@ -759,6 +759,7 @@ Typically the behavior of the _overtrained_ NN is attributed to following:
 - once trained (on the training set), it converges with a suspiciously low error - like a global minimum is found
 - when verified on the training data - it's indeed produces zero mistakes
 - but once verified on the entire data sets (i.e., on the data NN hasn't seen before) it starts making unexpectedly many mistakes
+
 \- then it's indeed could be that NN is overtrained, or the selected training set is _*unrepresentative*_ (e.g.: it could be made of data
 showing a strong input-output correlations while weak correlation data were left out)
 
