@@ -54,6 +54,9 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
     * [Hello World!](https://github.com/ldn-softdev/Rpnn#hello-world)
     * [Multi-class](https://github.com/ldn-softdev/Rpnn#multi-class)
     * [Classification as probability](https://github.com/ldn-softdev/Rpnn#classification-as-probability)
+    * [Couple classification examples from internet](https://github.com/ldn-softdev/Rpnn#couple-classification-examples-from-internet)
+    	* [Iris classification](https://github.com/ldn-softdev/Rpnn#iris-classification)
+
 3. [C++ user interface](...)
 
 
@@ -681,12 +684,85 @@ bash $
 (of the output signal occurrence) in this case!
 
 
+#### Couple classification examples from internet
+ Quick search on internet leads to [UCI ML Repository](https://github.com/ldn-softdev/Rpnn/edit/main/README.md) for the real world data sets.
+ Let's take couple samples from there:  
+ 
+##### Iris classification
+Here's a page for [Iris](https://archive.ics.uci.edu/ml/datasets/Iris) flower classification,
+the entire data set [iris.data](https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data) contains 150 input patterns,
+each made of 4 input parameters and 1 output class, the data (mixed) look like this:
+```
+bash $ cat iris.data | sort -R
+7.1,3.0,5.9,2.1,Iris-virginica
+5.8,2.7,3.9,1.2,Iris-versicolor
+6.4,3.2,4.5,1.5,Iris-versicolor
+4.9,3.1,1.5,0.1,Iris-setosa
+4.9,3.1,1.5,0.1,Iris-setosa
+...
+```
 
+The output class has only 3 values:
+ - `Iris Setosa`
+ - `Iris Versicolour`
+ - `Iris Virginica`
 
+The input values are some botanical property measurements of the flowers.
+But do we really need to know that info about the input/output data? No, really not. What we really need to know is the total size of the input set (`150`),
+number of inputs channels (`4`) and number of output classes (`1`).
 
+Normally, NN are trained to be able to _generalize_ rather then _memorize_ the data. Thus, selecting the training set requires a careful selection of
+the _representative_ data out of the input sets. Then train the NN on the training set and verify that it works on the rest of the data (i.e. the data
+that it has never seen before).
 
+Let's skip that careful selection and just randomly pick a half of the set (hoping it would be representative enough):
+```
+bash $ <iris.data sort -R | head -n75 >iris_train.data
+bash $ 
+```
+Now, let's train the NN for iris problem (let's start with just 2 neurons in the hidden layer):
+```
+bash $ <iris_train.data rpn -f iris.bin -t4,2,1 -b0 
+Rpnn found best local minimum, combined total epochs 15331 with error: 0.122279
+bash $ 
+```
+With given error, it makes only 3 mistakes (out of 150), which is only 2% error rate - not bad at all!
+```
+bash $ <iris.data rpn -riris.bin -d
+.run(), reinstated rpn brains from file: iris.bin
+.run(), cnv_.size(): 5
+.run(), receptors_count: 4
+...
+.read_patterns_(), .read_patterns_(), read input values: 5.9 3.2 4.8 1.8 Iris-versicolor
+Iris-virginica
+...
+.read_patterns_(), .read_patterns_(), read input values: 6.7 3.0 5.0 1.7 Iris-versicolor
+Iris-virginica
+...
+.read_patterns_(), .read_patterns_(), read input values: 6.0 2.7 5.1 1.6 Iris-versicolor
+Iris-virginica
+```
 
+> There's also an easier visualization than looking at debugging - by transforming outputs into JSON values and then using
+[`jtc`](https://github.com/ldn-softdev/jtc) to find descripances between input data and the produced results, like this:
+>```
+>bash $ <iris.data rpn -r iris.bin -d 2>&1 | tail -n+4 | sed -E 's/^.* ([^ ]+)$/\1/; s/.*/"&"/' | jtc -J / -jw'[::2]<V>v<I>k[-1]>I<t1' -T[{{V}},{{}}] / -rw'[:]<I>k[0]<V>f[-1][1]<V>s<>F[-1]' -T'{"{I}":{{}}}'
+>{ "70": [ "Iris-versicolor", "Iris-virginica" ] }
+>{ "77": [ "Iris-versicolor", "Iris-virginica" ] }
+>{ "83": [ "Iris-versicolor", "Iris-virginica" ] }
+>bash $ 
+>```
 
+There might be a temptation to achieve even a more perfect result by throwing more neurons into the topology, but then there's a risk of
+_overtraining_ the network, where it starts memorizing the data instead of _generalizing_.  
+Typically the behavior of the _overtrained_ NN is attributed to following:
+- once trained (on the training set), it converges with a suspiciously low error - like a global minimum is found
+- when verified on the training data - it's indeed produces zero mistakes
+- but once verified on the entire data sets (i.e., on the data NN hasn't seen before) it starts making unexpectedly many mistakes
+\- then it's indeed could be that NN is overtrained, or the selected training set is _*unrepresentative*_ (e.g.: it could be made of data
+showing a strong input-output correlations while weak correlation data were left out)
+
+> Important: the computational power of the NN is driven by the number of synapses and not by the number of neurons!
 
 
 
