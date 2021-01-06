@@ -685,7 +685,7 @@ bash $
 
 
 #### Couple classification examples from internet
- Quick search on internet leads to [UCI ML Repository](https://github.com/ldn-softdev/Rpnn/edit/main/README.md) for the real world data sets.
+ Quick search on internet leads to [UCI ML Repository](https://archive.ics.uci.edu/ml/index.php) for the real world data sets.
  Let's take couple samples from there:  
  
 ##### Iris classification
