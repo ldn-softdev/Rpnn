@@ -316,8 +316,8 @@ Say, you want to try another input normalization range, e.g.: `-50, +50`. Then e
  is the same on the help screen `-h`)
 
 Anoter example, it's possible to alter all the values in one go, like this:  
-`-P BLM_RDCE:'15, 1.5, 0.01, 1e+5, 1e-10, 20, -20' `
-> note: quotes are used because of the spaces separating parameters 
+`rpn -P BLM_RDCE:'15, 1.5, 0.01, 1e+5, 1e-10, 20, -20' ...`
+> note: quotes are used because of the spaces separating parameters (i.e., to dodge shell interpolation) 
  
 Description:
  * `BLM_RDCE` - reduce factor for _best local minimum_ search mode - varies from 1 (exclusively) to to any higher number - the higher number,
