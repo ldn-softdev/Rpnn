@@ -1,6 +1,6 @@
 
 # `Rpnn` (under construction)
-This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface, 
+This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface; 
 no dependencies - fully contained implementation.
 
 ##### Enhancement requests and/or questions are more than welcome: *ldn.softdev@gmail.com*
@@ -43,7 +43,7 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
         * [Local Minimum traps detection](https://github.com/ldn-softdev/Rpnn#local-minimum-traps-detection)
         * [Cost (error) function](https://github.com/ldn-softdev/Rpnn#Cost-error-function)
         * [Generic parameters](https://github.com/ldn-softdev/Rpnn#generic-parameters)
-        * [Searching best local minimum](https://github.com/ldn-softdev/Rpnn#finding-best-local-minimum)
+        * [Searching best local minimum](https://github.com/ldn-softdev/Rpnn#searching-best-local-minimum)
         * [Alternative weight bouncer](https://github.com/ldn-softdev/Rpnn#alternative-weight-bouncer)
         * [Seed for randomizer](https://github.com/ldn-softdev/Rpnn#seed-for-randomizer)
         * [Epochs to run](https://github.com/ldn-softdev/Rpnn#epochs-to-run)
@@ -56,13 +56,14 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
     * [Classification as probability](https://github.com/ldn-softdev/Rpnn#classification-as-probability)
     * [Couple classification examples from internet](https://github.com/ldn-softdev/Rpnn#couple-classification-examples-from-internet)
     	* [Iris classification](https://github.com/ldn-softdev/Rpnn#iris-classification)
+    	* [Car Evaluation](https://github.com/ldn-softdev/Rpnn#car-evaluation)
 
 3. [C++ user interface](...)
 
 
 ## cli toy
 This package provides a simple unix cli tool which allows running `Rpnn` from shell and toying with your data.
-This cli tool is probably the easiest way to introduce yourself to classical NN (no programming skill required),
+This cli tool is probably the easiest way to introduce yourself to classical NN (no programming skills required),
 however it's also could be used in all the areas where backprop is applicable (classification, regressions, approximations,
 prediction, etc):
 ```
@@ -159,7 +160,7 @@ line should be separated either with blank space, or optionally with `,` or `;`,
 For example, say your topology has _2 receptors_ and _1 output neuron_, then any of following input lines are fine:
 ```
 0 0 0
-0, 1, 1
+0, 1,  1
 1,0 =1
 1==1,,0
 ```
@@ -167,13 +168,14 @@ The last line though might be confusing, as it still facilitates two inputs (`1`
 using value separators.
 
 If `rpn` does not find a solution (fails to converge), then it does not dump its brains into the file (then you should adjust parameters,
-e.g.: increase epochs, alter target error, change topology, etc) - that applies though only when searching for a global minimum.
+e.g.: increase epochs, alter target error, change topology, etc) - that applies though only when searching for a global minimum - when engaging
+[_BLM_ search](https://github.com/ldn-softdev/Rpnn#searching-best-local-minimum) NN always converges with some degree of success.
 
 #### Trained mode
 To start `rpn` in a trained mode, you need to give it a parameter `-r` followed by the file name where `rpn` brains are (default is `rpn.bin`)
 in the trained mode `rpn` accepts the input lines the same way like in the _Learning mode_, only the values on each line here are input patterns
 (if any other values are present on the same line, those will be ignored)  
-> if option `-r` is given the others will be ignored (save `-u`)
+> when option `-r` is given the others will be ignored (save `-u`)
 
 Option `-u` instructs `rpn` to round up all the outputs (if real numbers used) to an integer part (in the trained mode, of course); in case if
 outputs are symbolic enumerations, then show real conversion numbers instead 
@@ -218,9 +220,9 @@ bash $
 .configure(), effectors: 1
 .configure(), output neurons: 1
 ```
-- Number of receptors: `1`
+- Number of receptors: `1` (receptor is a neuron w/o synapses, facing user inputs)
 - Number of effectors: `1` (effector is a non-receptor neuron)
-- Number of output neurons: `1` (output neuron is also effector)  
+- Number of output neurons: `1` (output neuron is also an effector)  
 thus such default topology is expressed as an option `-t 1,1` (there are only 2 neurons in such topology)  
 > well, there's one more hidden neuron ("the one") which is always implicitly present and is interconnected to all others
 
@@ -238,7 +240,7 @@ Some tasks might not even have a global minimum solution (e.g.: approximations/r
 thus manual adjusting target error (to the higher end) might be required.
 
 Though adjusting target error manually could be tedious and non-efficient, `rpn` provides an automatic way for searching the deepest local minimum
-in absence of a global one (see option `-b`)
+in absence of a global one (see option [`-b`](https://github.com/ldn-softdev/Rpnn#searching-best-local-minimum))
 
 #
 ##### Inputs normalization
@@ -251,7 +253,7 @@ are the same). Given that the logistic function often is a bounded type (e.g.: `
 _max_ and _min_ values are mapped around the logistic's zero point. Default input normalization values are `-n -1,+1`.
 
 Also, Rpnn limits _delta weight_ step's _min_ and _max_ values to `1.e-6` and `1.e+3` respectively (though such default parameters could be
-altered with -P option):
+altered with [`-P`](https://github.com/ldn-softdev/Rpnn#generic-parameters) option):
 ```
 #define RPNN_MIN_STEP   1.e-6
 #define RPNN_MAX_STEP   1.e+3
@@ -295,11 +297,14 @@ bash $
 ```
 \- the framework provides a way to detect if during the convergence it ends up in the local minimum valley so that it could re-initialize all its
 weights and bounce itself out of the local minimum trap.  
-That mechanism is facilitated with the tracking the error trail of each epoch's global error. The size of such trail typically is proportional to
-the total number of weights in the given topology with the default factor of `-m 4` (i.e. times `4`). Though it does not always work optimally and
-sometimes requires adjustments (to a shorter factor, e.g. `2` or `3` - to speedup convergence) or a longer one (to ensure a reliable LM detection).
+That mechanism is facilitated with the tracking the error trail of each epoch's global error. The size of such trail is typically proportional to
+the total number of weights in a given topology with the default factor of `-m 4` (i.e. times `4`). Though it does not always work optimally and
+sometimes requires adjustments (to a shorter factor, e.g. `2` or `3` - to speedup convergence) or a longer one (to ensure a more reliable LM detection).
 > The mechanism poses a dilemma though: LM trap detection drastically improves chances for a successful converge, but the trail size slows down the
-convergence itself (the bigger trail size, the slower training runs) - finding a right balance is the subject of some research for a given task.
+convergence itself (the bigger trail size, the slower training runs) - finding a right balance is the subject of some research for a given problem solution.
+
+Setting trail size to zero (`-m0`) disables LM detection (and also will render
+[_BLM_ search](https://github.com/ldn-softdev/Rpnn#searching-best-local-minimum) ineffective)
 
 #
 ##### Cost (error) function
@@ -309,7 +314,7 @@ convergence itself (the bigger trail size, the slower training runs) - finding a
 Default cost function to evaluate convergence (across all the output neurons) is _Sum of Squared Errors_ (`Sse`).
 Another cost function is _Cross Entropy_ (`Xntropy`)
 
-Typically _Cross Entropy_ is used together with `Softmax` logistic functions of the output neurons.  
+Typically, _Cross Entropy_ is used together with `Softmax` logistic functions of the output neurons.  
 \- to alter the cost function, use `-c Xntropy`
 
 ##### Generic parameters
@@ -327,9 +332,9 @@ Typically _Cross Entropy_ is used together with `Softmax` logistic functions of 
 Say, you want to try another input normalization range, e.g.: `-50, +50`. Then either way will do it:  
  - `-P NRM_MAX=50 -P NRM_MIN:50` - separator between parameter name and value could be either `:` or `=`,
  - `-P NRM_MAX:50,-50` - if multiple values given, then those applied on the respective parameters in the displayed order starting from the given one (the order
- is the same on the help screen `-h`)
+ is the same on the help screen [`-h`](https://github.com/ldn-softdev/Rpnn#cli-toy))
 
-Another example, it's possible to alter all the values in one go, like this:  
+For example, it's possible to alter all the values in one go, like this:  
 `rpn -P BLM_RDCE:'15, 1.5, 0.01, 1e+5, 1e-10, 20, -20' ...`
 > note: quotes are used because of the spaces separating parameters (i.e., to dodge shell interpolation)
 
@@ -356,15 +361,15 @@ Description:
 .configure(), blm (threads) engaged: no
 ```
 By default `rpn` will try finding a global minimum (convergence point, where the global error is close to zero - below target's error) and if it fails
-to find one - it won't save it's brains at the end. However, most of the tasks where backprops may apply _do not have global minimum_. There the solution
-sounds like this: find the deepest possible local minimum.
+to find one - it won't save its brains at the end. However, most of the tasks where backprops may apply _do not have global minimum_ at all.
+There the solution sounds like this: find the deepest possible _local minimum_.
 
 The approach `Rpnn` takes in such case is running and tracking multiple convergences until local minimum is detected and then picking the convergence
 result with the smallest error (deepest found LM). It's implemented by running multiple instances of configured NN concurrently (each instance will be
 run multiple times too).
 
 To enable such mode (a.k.a. _BLM search_) is to give option `-b` followed by the number of threads. if number `0` given (`-b0`), then the number of threads
-will corresponds to the maximum number of supported hardware threads (#cores times #threads per core).
+will correspond to the maximum number of supported hardware threads (#cores times #threads per core).
 
 The target error (`-e`) in such case serves as a twofold exit criteria:
 - if NN able to converge below the target error (i.e. a global minimum is found)
@@ -379,12 +384,12 @@ Because _BLM search_ is suitable for finding even the global minimum, it does no
 ```
 .configure(), bouncer: native
 ```
-By default `rpn` will use a simple randomizer to update its weights before starting a new convergence (and when bouncing itself out of LM trap).
+By default `rpn` will use a simple randomizer to update its weights before starting a new convergence (and when bouncing itself out of LM trap).  
 For a reference there's another bouncer provided: it builds first a limited set of uniform weights distributions (across all the weights) and then
 uses them up (in a random order) until all exhausted - that method is more deterministic than random weight bouncing in terms that it tries only a certain
 prescribed sets of weights distributions.
 
-To plug-in the alternative weight update function give `-a` option.
+To plug the alternative weight update function give `-a` option.
 
 #
 ##### Seed for randomizer
@@ -400,47 +405,59 @@ running multiple convergences with the same seed, which could be done using opti
 ```
 .configure(), epochs to run: 100000
 ```
-When NN tries once all the given input patterns and learns from them (by back-propagating the resulting error adjusting its weights towards the closer match)
-it's called an _epoch_. Because the _error plane_ is always smoothly differentiable, it inevitably leads towards the minimum either local or global
-(thanks to the _learning rule_), however, it certainly requires an _unknown_ number of such iterations (epochs). `Rpnn` typically reach the minimums quite
-quickly and then (if LMD is enabled) will try bouncing itself out of the found LM and will descend into another one.  
+When NN tries once all the given input patterns and learns from them (by back-propagating the resulting error and adjusting its weights towards the closer
+match) it's called an _epoch_. Because the _error plane_ is always smoothly differentiable, it inevitably leads towards the minimum either local or global
+(thanks to the _learning rule_), however, it certainly requires an _unknown_ number of such iterations (epochs) to reach one.  
+`Rpnn`  reaches the minimums quite quickly and then (if _LMD_ is enabled) will try bouncing itself out of the found _LM_ and will descend into another one.  
 To cap the number of such iterations the number of epoch sets the limit. The maximum number of epochs is given as the only standalone attribute to `Rpnn` (if
 omitted, then default number `100000` is used).
 
 The above mostly applies when _BLM_ search is not engaged, otherwise, there the number of attempts is rather limited by the number of LM found (which is a
-combinations of 2 factors `BLM_RDCE` and _target error_), though setting epoch number to a very shallow value (even in _BLM_) is not advisable, as it may
-result in a premature end of convergence even before reaching the LM.
+combinations of 2 factors `BLM_RDCE` and _target error_), though setting epoch number to a very shallow value is not advisable, as it may result in a
+premature end of convergence even before reaching a local or global minimum.
 
 
 #### Configuring NN Topology
 
 NN topology could be verified with `-dd` debug depth:
 ```
-bash $ rpn -dd
-.configure_rpn(), receptors: 1
-.configure_rpn(), effectors: 1
-.configure_rpn(), output neurons: 1
-.configure_rpn(), target error: 0.001
-.configure_rpn(), normalize inputs: true [-1 to 1]
-.configure_rpn(), LM trail size: 4
-.configure_rpn(), cost function: cf_Sse
-.configure_rpn(), randomizer seed: timer (1607090056539971)
-.configure_rpn(), epochs to run: 100000
-..configure_rpn(), class 'Rpnn'...
-   Rpnn::addr(): 0x7ffee229d710
+bash $ <<<"0 0 " rpn -dd
+.configure(), receptors: 1
+.configure(), effectors: 1
+.configure(), output neurons: 1
+.configure(), target error: 0.001
+.configure(), normalize inputs: true [-1 to +1]
+.configure(), LM trail size: 4
+.configure(), cost function: cf_Sse
+.configure(), generic parameter BLM_RDCE: 5
+.configure(), generic parameter DW_FACTOR: 1.1618
+.configure(), generic parameter LMD_PTRN: 0.001
+.configure(), generic parameter MAX_STEP: 1000
+.configure(), generic parameter MIN_STEP: 1e-06
+.configure(), generic parameter NRM_MAX: 1
+.configure(), generic parameter NRM_MIN: -1
+.configure(), blm (threads) engaged: no
+.configure(), bouncer: native
+.configure(), randomizer seed: timer (1610037935476627)
+.configure(), epochs to run: 100000
+.read_patterns_(), start reading training patterns (1 inputs + 1 outputs)...
+.read_patterns_(), read 1 pattern(s)
+.resolve(), training patterns read and loaded, starting convergence...
+..resolve(), class 'Rpnn'...
+   Rpnn::addr(): 0x7ffee61b1040
    Rpnn::min_step(): 1e-06
    Rpnn::max_step(): 1000
    Rpnn::dw_factor(): 1.1618
    Rpnn::target_error_: 0.001
    Rpnn::cost_func(): "Sse"
-   Rpnn::wbp_: 0x7ffee229d7e8
+   Rpnn::wbp_: 0x7ffee61b1120
    Rpnn::epoch_: 0
    Rpnn::terminate_: false
    Rpnn::effectors_start_idx(): 2
    Rpnn::output_neurons_start_idx(): 2
    Rpnn::neurons()[0]: class 'rpnnNeuron'...
-      neurons()[0]::addr(): 0x7ffa28407170
-      neurons()[0]::host_nn_ptr(): 0x7ffee229d710
+      neurons()[0]::addr(): 0x7fefc2c07900
+      neurons()[0]::host_nn_ptr(): 0x7ffee61b1040
       neurons()[0]::is_receptor(): true
       neurons()[0]::transfer_func(): "Sigmoid"
       neurons()[0]::out(): 1
@@ -450,44 +467,43 @@ bash $ rpn -dd
       neurons()[0]::inputs_ptr(): nullptr
       neurons()[0]::sum_: 0
    Rpnn::neurons()[1]: class 'rpnnNeuron'...
-      neurons()[1]::addr(): 0x7ffa28406cf0
-      neurons()[1]::host_nn_ptr(): 0x7ffee229d710
+      neurons()[1]::addr(): 0x7fefc2c07640
+      neurons()[1]::host_nn_ptr(): 0x7ffee61b1040
       neurons()[1]::is_receptor(): true
       neurons()[1]::transfer_func(): "Sigmoid"
       neurons()[1]::out(): 1
       neurons()[1]::delta(): 0
       neurons()[1]::bp_err(): 0
       neurons()[1]::synapses(): []
-      neurons()[1]::inputs_ptr(): nullptr
+      neurons()[1]::inputs_ptr(): 0x7fefc2c079d0
       neurons()[1]::sum_: 0
    Rpnn::neurons()[2]: class 'rpnnNeuron'...
-      neurons()[2]::addr(): 0x7ffa28406d70
-      neurons()[2]::host_nn_ptr(): 0x7ffee229d710
+      neurons()[2]::addr(): 0x7fefc2c076c0
+      neurons()[2]::host_nn_ptr(): 0x7ffee61b1040
       neurons()[2]::is_receptor(): false
       neurons()[2]::transfer_func(): "Sigmoid"
       neurons()[2]::out(): 1
       neurons()[2]::delta(): 0
       neurons()[2]::bp_err(): 0
-      neurons()[2]::synapses()[0]: rpnnSynapse.. host_nn_ptr():0x7ffee229d710, linked_neuron_ptr():0x7ffa28407170, weight():2.23461e-314, delta_weight():2.23464e-314, gradient():2.23464e-314, prior_gradient():0
-      neurons()[2]::synapses()[1]: rpnnSynapse.. host_nn_ptr():0x7ffee229d710, linked_neuron_ptr():0x7ffa28406cf0, weight():2.23464e-314, delta_weight():2.23464e-314, gradient():1.72723e-77, prior_gradient():0
+      neurons()[2]::synapses()[0]: rpnnSynapse.. host_nn_ptr():0x7ffee61b1040, linked_neuron_ptr():0x7fefc2c07900, weight():2.20194e-314, delta_weight():2.20197e-314, gradient():2.20197e-314, prior_gradient():0
+      neurons()[2]::synapses()[1]: rpnnSynapse.. host_nn_ptr():0x7ffee61b1040, linked_neuron_ptr():0x7fefc2c07640, weight():2.20197e-314, delta_weight():2.20197e-314, gradient():2.20197e-314, prior_gradient():0
       neurons()[2]::inputs_ptr(): nullptr
       neurons()[2]::sum_: 0
-   Rpnn::input_sets_: []
-   Rpnn::input_normalization()[0]: Norm.. found_min():2.23462e-314, found_max():1, base():-1, range():2
-   Rpnn::target_sets_: []
-   Rpnn::target_normalization(): []
+   Rpnn::input_sets_[0][0]: -1
+   Rpnn::input_normalization()[0]: Norm.. found_min():0, found_max():0, base():-1, range():2
+   Rpnn::target_sets_[0][0]: 0
+   Rpnn::target_normalization()[0]: Norm.. found_min():0, found_max():0, base():0, range():1
    Rpnn::output_errors_[0]: 0
    Rpnn::lm_detector(): fifoDeque.. capacity():4, fifo():[]
-.run_convergence(), start reading training patterns...
-
-^Caborted due to user interrupt received: SIGINT (2)
+Rpnn has converged at epoch 2 with error: 0.000525686
+.resolve(), dumped rpn brains into file: rpn.bin
 bash $ 
 ```
 
-Neuron synapses provide linkage to other neurons via `linked_neuron_ptr()`, so the topology could be traces down. In every topology there's one hidden
-neuron (a.k.a. _"the one"_), that neuron is required for a NN convergence and every effector is linked to that neuron - _"the one"_ is always shown
-first in the above output  
-All the other neurons are from user's configuration, i.e.: Neuron with address `0x7f91fbc06cf0` is a receptor (`is_receptor(): true`),
+Neuron synapses provide linkage to other neurons via `linked_neuron_ptr()`, so that a topology could be traces down.  
+In every topology there's one hidden neuron (a.k.a. _"the one"_) - that neuron is required for a NN convergence and every effector is linked to that
+neuron - _"the one"_ is always shown first in the above output  
+All the other neurons are from user's configuration, e.g.: the neuron with address `0x7f91fbc06cf0` is a receptor (`is_receptor(): true`),
 the logistic for a receptor is irrelevant, as receptors only facilitate input (patterns) values access.
 
 `Sigmoid` is a default transfer function for all the neurons, though all effectors (and output neurons separately) could be setup using other logistics:
@@ -530,17 +546,18 @@ to do it via options `-g`, `-G`:
 
 - `-g N,M` allows adding a single synapse for neurons N to M's output (i.e., a connection from M to N considering forward signal flow)
 - `-G N,M` this will ensure that between neurons N and M all recursive synapses added
-> base of values M and N is the same as in debug output - it's all zero based, but the first neuron is always reserved)
+> base of values M and N is the same as in debug output - it's all zero based, but the first neuron (with index of `0`) is always reserved)
 
 
-option `-p N,M` allows pruning a single synapse at the neuron N for the (address of) neuron M
+option `-p N,M` allows pruning a single synapse at the neuron N for the (address of) neuron M  
+a variant of option `-p N` prunes all the synapses from neuron N
 
 # 
 #### Other supported options
 
 - `-f <file>` - lets dumping trained `rpn` brains (upon a successful convergence) into the file of your choice (default output file is `rpn.bin`)
 - `-r <file>` - starts `rpn` in the trained mode - reads and reinstate brains state entirely from the file, ready to read & run the input data
-- `-S <separators>` - allows specifying a list of separators used for the input lines. Default are `\s,;=` (note the REGEX notation)
+- `-S <separators>` - allows specifying a list of separators used for the input lines. Default are `\s,;=` (_note the REGEX notation_)
 
 
 #
@@ -548,8 +565,8 @@ option `-p N,M` allows pruning a single synapse at the neuron N for the (address
 Let's review a few of academical and real world examples
 
 #### Hello World!
-_"Hello World!"_ task in the NN is the training of _XOR_ function - it's the simplest task that requires a multi-perceptron to converge (why is that - is
-out of scope of this tutorial, but you can easily google up
+_"Hello World!"_ problem in the NN is the training of _XOR_ function - it's the simplest problem that requires a multi-perceptron to converge
+(why is that - is out of scope of this tutorial, but you can easily google up
 [`The XOR Problem in Neural Networks`](https://www.google.com/search?hl=en&q=The+XOR+Problem+in+Neural+Networks&btnG=Google+Search)).
 
 Topology for the `rpn` can be given using `-t` option followed by the perceptron sizes over the comma. E.g.: to train `rpn` for the _XOR_ function,
@@ -592,7 +609,7 @@ bash $ <<<"
 0
 bash $
 ```
-> As you might have noticed, `rpn` was trained for _NOT XOR_ function instead
+> As you might have noticed, `rpn` was trained for _**NOT XOR**_ function instead
 
 That shows that the network has learnt the training material properly.
 
@@ -631,9 +648,9 @@ bash $
 ```
 
 #### Classification as probability
-However, like it was mentioned before, it's quite rare when the problem solution has a global minimum. Even for classification types of tasks the
+However, like it was mentioned before, it's quite rare when the problem solution has a global minimum. Even for classification types of problems the
 real world input data may contain duplicate and even conflicting data.  
-Let's consider this input set (_NOT XOR_ with noisy inputs):
+Let's consider this input set - _NOT XOR_ with noisy inputs:
 ```
 bash $ <<<"
 0, 0 = 1
@@ -726,7 +743,9 @@ bash $ <iris_train.data rpn -f iris.bin -t4,2,1 -b0
 Rpnn found best local minimum, combined total epochs 15331 with error: 0.122279
 bash $ 
 ```
-With given error, it makes only 3 mistakes (out of 150), which is only 2% error rate - not bad at all!
+With given error, it makes only 3 mistakes (out of 150), which is only 2% error rate - not bad at all! By far not all real-world problems have
+such a good correlations between inputs and outputs
+
 ```
 bash $ <iris.data rpn -riris.bin -d
 .run(), reinstated rpn brains from file: iris.bin
@@ -744,9 +763,11 @@ Iris-virginica
 ```
 
 > There's also an easier visualization than looking at debugging - by transforming outputs into JSON values and then using
-[`jtc`](https://github.com/ldn-softdev/jtc) to find descripances between input data and the produced results, like this:
+[**`jtc`**](https://github.com/ldn-softdev/jtc) to apply a series of transformations and display the descripances between input data
+and the produced results, like this:
 >```
->bash $ <iris.data rpn -r iris.bin -d 2>&1 | tail -n+4 | sed -E 's/^.* ([^ ]+)$/\1/; s/.*/"&"/' | jtc -J / -jw'[::2]<V>v<I>k[-1]>I<t1' -T[{{V}},{{}}] / -rw'[:]<I>k[0]<V>f[-1][1]<V>s<>F[-1]' -T'{"{I}":{{}}}'
+>bash $ <iris.data rpn -r iris.bin -d 2>&1 | tail -n+4 | sed -E 's/^.* ([^ ]+)$/\1/; s/.*/"&"/' |\  
+>jtc -J / -jw'[::2]<V>v' -T0 -w'[1::2]' -T'[{{V}},{{}}]' / -jw'><i:' / -rw'[:]<I>k[0]<V>f[-1][1]<V>s<>F[-1]' -T'{"{I}":{{}}}'
 >{ "70": [ "Iris-versicolor", "Iris-virginica" ] }
 >{ "77": [ "Iris-versicolor", "Iris-virginica" ] }
 >{ "83": [ "Iris-versicolor", "Iris-virginica" ] }
@@ -763,7 +784,53 @@ Typically the behavior of the _overtrained_ NN is attributed to following:
 \- then it's indeed could be that NN is overtrained, or the selected training set is _*unrepresentative*_ (e.g.: it could be made of data
 showing a strong input-output correlations while weak correlation data were left out)
 
-> Important: the computational power of the NN is driven mostly by the number of synapses and not so much by the number of neurons!
+> Important: the computational power of the NN is driven by the total count of synapses and not so much by the count of neurons!
+
+##### Car Evaluation
+
+page: [Car evaluation](https://archive.ics.uci.edu/ml/datasets/Car+Evaluation) requires classification training  
+data set file: [car.data](https://archive.ics.uci.edu/ml/machine-learning-databases/car/car.data)  
+description file: [car.names](https://archive.ics.uci.edu/ml/machine-learning-databases/car/car.names)  
+
+data look like this:
+```
+bash $ <car.data sort -R
+med,low,2,4,big,high,vgood
+low,med,3,4,small,high,good
+low,low,2,more,small,low,unacc
+vhigh,low,4,more,big,med,acc
+high,high,3,more,big,low,unacc
+med,med,3,more,med,high,vgood
+...
+```
+Three are no continuous input values (only discrete, enumerated inputs).  The last column represent an output class (made of 4 values:
+`unacc`, `acc`, `good`, `vgood`). 
+There is a total of 1728 values:
+```
+bash $ <car.data wc -l
+    1728
+bash $ 
+```
+
+Thus, training data preparation (_**which is generally the most crusial part of a successful NN training**_) here also could be trivial. Description provide
+following class distribution:
+```
+   class      N          N[%]
+   -----------------------------
+   unacc     1210     (70.023 %) 
+   acc        384     (22.222 %) 
+   good        69     ( 3.993 %) 
+   vgood       65     ( 3.762 %) 
+```
+Thus, for the training set, we can select all entries for `good`, `vgood` patterns and around 120 (random) patterns form each `unacc`, `acc` classes:
+```
+bash $ for i in unacc acc good vgood; do <car.data grep ",$i" | sort -R | head -n120; done | sort -R >car_test.data
+bash $ <car_test.data wc -l
+     374
+bash $ 
+```
+...
+
 
 
 
