@@ -29,7 +29,7 @@
 using namespace std;
 
 #define PRGNAME "Resilient Propagation Neural network (https://github.com/ldn-softdev/Rpnn)"
-#define VERSION "1.03"
+#define VERSION "1.04"
 #define CREATOR "Dmitry Lyssenko"
 #define EMAIL "ldn.softdev@gmail.com"
 
@@ -379,8 +379,9 @@ Rpn & Rpn::configure(void) {
 
  // prune synapses
  for(auto &ps: opt()[CHR(OPT_PRS)]) {
-  vector<size_t> s = str_to_num<size_t>(ps, 2);
-  neuron(s[0]).prune_synapses(s[1]);
+  vector<size_t> s = str_to_num<size_t>(ps, 1);
+  if(s.size() >= 2) neuron(s[0]).prune_synapses(s[1]);
+  else neuron(s[0]).synapses().resize(1);
  }
 
  // parse GPM

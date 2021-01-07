@@ -1334,7 +1334,7 @@ void Rpnn::converge(size_t epochs) {
  }
 
  terminate_ = false;
- DBG(1) DOUT() << "dump post-convergence: " << *this << std::endl;
+ DBG(3) DOUT() << "dump post-convergence: " << *this << std::endl;
 }
 
 
@@ -1542,8 +1542,14 @@ void blmFinder::bounce(void) {
 
 void blmFinder::find_blm(nnv_type &nnv) {
  // run multiple threads searching for the deepest LM
- auto glambda = [&](Rpnn &n, auto&&... arg)                     // helper lambda to start thread
-  { return n.converge(std::forward<decltype(arg)>(arg)...); };
+ auto glambda = [&](Rpnn &n, auto&&... arg) {                    // helper lambda to start thread
+   try { return n.converge(std::forward<decltype(arg)>(arg)...); }
+   catch(Rpnn::stdException & e) {
+    DBG(0) DOUT() << "exception by one of the threads, invalidating its errors"  << std::endl;
+    for(auto &oe: n.output_errors())
+     oe = std::numeric_limits<double>::max();
+   }
+  };
 
  for(auto &n: nnv)
   tm_.start_sync(glambda, std::ref(n), SIZE_T(-1));
