@@ -48,8 +48,8 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
         * [Seed for randomizer](https://github.com/ldn-softdev/Rpnn#seed-for-randomizer)
         * [Epochs to run](https://github.com/ldn-softdev/Rpnn#epochs-to-run)
       * [Configuring NN Topology](https://github.com/ldn-softdev/Rpnn#configuring-nn-topology)
-      * [Other supported options](https://github.com/ldn-softdev/Rpnn#other-supported-options)
         * [Growing and pruning synapses](https://github.com/ldn-softdev/Rpnn#Growing-and-pruning-synapses)
+      * [Other supported options](https://github.com/ldn-softdev/Rpnn#other-supported-options)
 2. [Study Examples](https://github.com/ldn-softdev/Rpnn#study-examples) 
     * [Hello World!](https://github.com/ldn-softdev/Rpnn#hello-world)
     * [Multi-class](https://github.com/ldn-softdev/Rpnn#multi-class)
@@ -57,8 +57,7 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
     * [Couple classification examples from internet](https://github.com/ldn-softdev/Rpnn#couple-classification-examples-from-internet)
     	* [Iris classification](https://github.com/ldn-softdev/Rpnn#iris-classification)
     	* [Car Evaluation](https://github.com/ldn-softdev/Rpnn#car-evaluation)
-
-3. [C++ user interface](...)
+3. [C++ class user interface](https://github.com/ldn-softdev/Rpnn#c-class-user-interface)
 
 
 ## cli toy
@@ -73,7 +72,7 @@ usage: rpn [-adhu] [-G N,M] [-P param] [-S separators] [-b threads] [-c cost_fun
            [-r file_name] [-s seed] [-t perceptrons] [epochs]
 
 Resilient Propagation Neural network (https://github.com/ldn-softdev/Rpnn)
-Version 1.03 (built on Jan  6 2021), developed by Dmitry Lyssenko (ldn.softdev@gmail.com)
+Version 1.04 (built on Jan  7 2021), developed by Dmitry Lyssenko (ldn.softdev@gmail.com)
 
 optional arguments:
  -a             plug in a uniform bouncer (alternative to randomizer)
@@ -763,7 +762,7 @@ Iris-virginica
 ```
 
 > There's also an easier visualization than looking at debugging - by transforming outputs into JSON values and then using
-[**`jtc`**](https://github.com/ldn-softdev/jtc) to apply a series of transformations and display the descripances between input data
+[**`jtc`**](https://github.com/ldn-softdev/jtc) to apply a series of transformations and display the discrepancies between input data
 and the produced results, like this:
 >```
 >bash $ <iris.data rpn -r iris.bin -d 2>&1 | tail -n+4 | sed -E 's/^.* ([^ ]+)$/\1/; s/.*/"&"/' |\  
@@ -829,8 +828,40 @@ bash $ <car_test.data wc -l
      374
 bash $ 
 ```
+After playing a bit with variations of topology and other parameters, this pans out like a quite promising solution:
+```
+bash $ time <car_test.data rpn -t6,6,4,2,1 -b0 -e1e-30 -PBLM_RDCE:30 -f car.bin -lSoftplus -oSigmoid
+Rpnn found best local minimum, combined total epochs 683236 with error: 3.19595
+
+real	1m22.389s
+user	10m9.294s
+sys	0m1.718s
+bash $
+bash $ <car.data sort -R | rpn -r car.bin -d
+.run(), reinstated rpn brains from file: car.bin
+.run(), cnv_.size(): 7
+.run(), receptors_count: 6
+.read_patterns_(), .read_patterns_(), read input values: high high 4 more big high acc
+acc
+.read_patterns_(), .read_patterns_(), read input values: high med 4 2 small high unacc
+unacc
+.read_patterns_(), .read_patterns_(), read input values: med low 4 4 small high good
+good
+.read_patterns_(), .read_patterns_(), read input values: high vhigh 2 more med med unacc
+unacc
 ...
+bash $
+bash $ <car.data rpn -r car.bin -d 2>&1 | tail -n+4 | sed -E 's/^.* ([^ ]+)$/\1/; s/.*/"&"/' |\
+jtc -J / -jw'[::2]<V>v' -T0 -w'[1::2]' -T'[{{V}},{{}}]' / -jw'><i:' / -rw'[:]<I>k[0]<V>f[-1][1]<V>s<>F[-1]' -T'{"{I}":{{}}}' | wc -l
+     149
+bash $ 
+```
+\- The resulting error rates:
+- on the training set: 28 / 374 = 7.487%
+- on the entire data set: 149 / 1728 = 8.623%
 
+So, this another example of a quite correlateable data with a good solution
 
-
+## C++ class user interface
+...
 
