@@ -58,6 +58,7 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
     	* [Iris classification](https://github.com/ldn-softdev/Rpnn#iris-classification)
     	* [Car Evaluation](https://github.com/ldn-softdev/Rpnn#car-evaluation)
 3. [C++ class user interface](https://github.com/ldn-softdev/Rpnn#c-class-user-interface)
+    * [Essensial SYNOPSIS](https://github.com/ldn-softdev/Rpnn#Essensial-SYNOPSIS)
 
 
 ## cli toy
@@ -863,5 +864,39 @@ bash $
 So, this another example of a quite correlateable data with a good solution
 
 ## C++ class user interface
+c++ class interface is rather simple. Begin with includein header file:
+```
+#include "lib/rpnn.hpp"
+```
+That hearder file contans following classes:
+ - _`class rpnnSynapse`_: not meant for user - used only by `rpnnNeuron` class, the constructor is made public for `SERDES` interface and for UT'ing only 
+ - _`class rpnnNeuron`_: not meant for user - used by `Rpnn` calss, the constructor is made public for `SERDES` interface and for UT'ing only 
+ - _`class rpnnBouncer`_: default class facilitating NN weight assignments (via randomization), a user may create own weight policy class as a child class of this one 
+ - _`class Rpnn`_: user facing class facilitating Resilient backPropagation Neural Network
+ - _`class uniformBouncer`_: an example class (for a referrence) - a child class of `rpnnBouncer` providing a uniform weight distribution (rather than random) 
+ - _`class blmFinder`_ - a child class of `rpnnBouncer` facilitating a search of a better LM via spawning concurent (multithreaded) copies of a host RPNN class 
+
+#### Essensial SYNOPSIS:
+```
+    Rpnn nn;		// create RPNN object - there are no other forms for constructor
+			// copy constructor exist, but rather performs cloning function
+			// move constructor is deleted (but that might be lifted in the future)
+
+    nn.full_mesh(..);	// it's best to beging with creating a skeleton of topology:
+			// full_mesh method exists in two variants:
+			// 1. variadic form - accepts topology as enumerated perceptros, e.g.:
+			//   	full_mesh(5,2,3) - 5 receptors, 2 hidden neurons, 3 output neurons
+			// 2. accepts a templated STL trivial container (std::vecttor, std::list, std::deque, etc)
+			//	std::vector my_topology{5,2,3};
+			//	full_mesh(my_topology);
+```
+> Note: Rpnn (and other user-facing class methods) support _fluent_ notation
+
+If by chance a _full-mesh_ topology is not enough, then it's possible to modify it by _growing_ and _prunning_ synapses:
 ...
+
+
+
+
+
 
