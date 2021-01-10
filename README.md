@@ -864,7 +864,7 @@ bash $
 So, this another example of a quite correlateable data with a good solution
 
 ## C++ class user interface
-C++ class interface is rather simple. Begin with includein header file:
+C++ class interface is rather simple. Begin with including a header file:
 ```
 #include "lib/rpnn.hpp"
 ```
@@ -873,8 +873,8 @@ That hearder file contans following classes:
  - _`class rpnnNeuron`_: not meant for user - used by `Rpnn` calss, the constructor is made public for `SERDES` interface and for UT'ing only 
  - _`class rpnnBouncer`_: default class facilitating NN weight assignments (via randomization), a user may create own weight policy class as a child class of this one 
  - _`class Rpnn`_: user facing class facilitating Resilient backPropagation Neural Network
- - _`class uniformBouncer`_: an example class (for a referrence) - a child class of `rpnnBouncer` providing a uniform weight distribution (rather than random) 
- - _`class blmFinder`_ - a child class of `rpnnBouncer` facilitating a search of a better LM via spawning concurent (multithreaded) copies of a host RPNN class 
+ - _`class uniformBouncer`_: an example class (for a reference) - a child class of `rpnnBouncer` providing a uniform weight distribution (rather than random) 
+ - _`class blmFinder`_ - a child class of `rpnnBouncer` facilitating a search of a better LM via spawning concurrent (multithreaded) copies of a host RPNN class 
 
 #### Essensial SYNOPSIS:
 ```
@@ -882,18 +882,19 @@ That hearder file contans following classes:
 			// copy constructor exist, but rather performs cloning function
 			// move constructor is deleted (but that might be lifted in the future)
 
-    nn.full_mesh(..);	// it's best to beging with creating a skeleton of topology:
+    nn.full_mesh(..);	// it's best to begin with creating a skeleton of topology:
 			// full_mesh method exists in two variants:
-			// 1. variadic form - accepts topology as enumerated perceptros, e.g.:
+			// 1. variadic form - accepts topology as enumerated perceptrons, e.g.:
 			//   	full_mesh(5,2,3) - 5 receptors, 2 hidden neurons, 3 output neurons
-			// 2. accepts a templated STL trivial container (std::vecttor, std::list, std::deque, etc)
+			// 2. accepts a templated STL trivial container (std::vector, std::list, std::deque, etc)
 			//	std::vector my_topology{5,2,3};
 			//	full_mesh(my_topology);
 ```
 > Note: Rpnn (and other user-facing class methods) support _fluent_ notation
 
-If by chance a _full-mesh_ topology is not enough, then it's possible to modify it by _growing_ and _prunning_ synapses:
+If by chance a _full-mesh_ topology is not enough, then it's possible to modify it by _growing_ and _pruning_ synapses:
 ...
+
 
 
 
