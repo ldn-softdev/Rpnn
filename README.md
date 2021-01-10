@@ -864,7 +864,7 @@ bash $
 So, this another example of a quite correlateable data with a good solution
 
 ## C++ class user interface
-c++ class interface is rather simple. Begin with includein header file:
+C++ class interface is rather simple. Begin with includein header file:
 ```
 #include "lib/rpnn.hpp"
 ```
