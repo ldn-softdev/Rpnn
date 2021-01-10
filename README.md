@@ -887,7 +887,7 @@ That hearder file contans following classes:
 			// 1. variadic form - accepts topology as enumerated perceptrons, e.g.:
 			//   	full_mesh(5,2,3) - 5 receptors, 2 hidden neurons, 3 output neurons
 			// 2. accepts a templated STL trivial container (std::vector, std::list, std::deque, etc)
-			//	std::vector my_topology{5,2,3};
+			//	std::vector<int> my_topology{5,2,3};
 			//	full_mesh(my_topology);
 ```
 > Note: Rpnn (and other user-facing class methods) support _fluent_ notation
