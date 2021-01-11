@@ -931,7 +931,7 @@ That hearder file contans following classes:
  - _`class rpnnNeuron`_: facilitates neurons - holds connecting synapses, logistic function and link to the input patterns (for receptors only)  
  - _`class rpnnBouncer`_: default class facilitating NN weight assignments (via randomization) - allows plugging weight update methods
  - _`class Rpnn`_: user facing class facilitating Resilient backPropagation Neural Network
- - _`class uniformBouncer`_: an example of pluggable functor class (for a reference) providing a uniform weight distribution (rather than default random) 
+ - _`class uniformBouncer`_: an example of pluggable functor class (for a reference) providing a uniform weight distribution 
  - _`class blmFinder`_ - a child class of `rpnnBouncer` facilitating a search of a better LM via spawning concurrent (multithreaded) copies of Rpnn host 
 
 > `Rpnn` (and other classes user-facing methods) support _fluent_ notation
@@ -954,7 +954,7 @@ here's an example how to to create and train Rpnn for XOR, OR, AND problem (i.e.
     // configuring and training Rpnn
     Rpnn nn;
     nn.full_mesh(2, 2, 3)			// begin with defining topology
-      .normalize()				// optional, but if used, muse be called before load_patterns(..) 
+      .normalize()				// optional, but if used, must be called before load_patterns(..) 
       .load_patterns(input_ptrn, target_ptrn)	// load up in/out patterns, required
       .lm_detection(nn.synapse_count() * 3)	// engage LM trap detection (optional, but desirable)
       .target_error(0.00001)			// in this example it's optional
