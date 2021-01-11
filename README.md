@@ -924,7 +924,7 @@ So, this another example of a quite correlateable data with a good solution
 ## C++ class user interface
 C++ class interface is rather simple. Begin with including a header file:
 ```
-#include "lib/rpnn.hpp"
+#include "rpnn.hpp"
 ```
 That hearder file contans following classes:
  - _`class rpnnSynapse`_: facilitates synapse (neurons linkage) as well as (connection) weight
@@ -954,28 +954,28 @@ here's an example how to to create and train Rpnn for XOR, OR, AND problem (i.e.
     // configuring and training Rpnn
     Rpnn nn;
     nn.full_mesh(2, 2, 3)			// begin with defining topology
+      .normalize()				// optional, but if used, muse be called before load_patterns(..) 
       .load_patterns(input_ptrn, target_ptrn)	// load up in/out patterns, required
       .lm_detection(nn.synapse_count() * 3)	// engage LM trap detection (optional)
       .target_error(0.00001)			// in this example it's optional
-      .normalize()				// in this example not strictly required
       .converge(10000);				// find solution
 
     // Offload NN brains into the file
-    std::ofstream file("oxa.bin", ios::binary);
+    std::ofstream file("oxa.bin", std::ios::binary);
     file << std::noskipws << Blob(nn);		// dump (serialize) NN to file
 ```
-Now the counterpart reading a (trained) Rpnn brains from the file and activating with user data;
+Now the counterpart - reading a (trained) Rpnn brains from the file and activating with user data:
 ```
     // ...
-    Blob b(std::istream_iterator<char>(ifstream{"oxa.bin", ios::binary}>>noskipws),
+    Blob b(std::istream_iterator<char>(std::ifstream{"oxa.bin", std::ios::binary}>>std::noskipws),
            std::istream_iterator<char>{});	// read serialized NN from file into blob
-    Rpnn nn;
-    b.restore(nn);				// de-serialize blob into NN 
+
+    Rpnn nn(b);					// Create Rpnn obj & de-serialize blob into NN 
 
     // activate varous channels
-    std::cout << "1 AND 0 = " << nn.acrivate({1, 0}).out(2) << std::endl; 
-    std::cout << "1 XOR 1 = " << nn.acrivate({1, 1}).out(1) << std::endl;
-    std::cout << "0 OR 1 = "  << nn.acrivate({0, 1}).out()  << std::endl;
+    std::cout << "1 AND 0 = " << nn.activate({1, 0}).out(2) << std::endl; 
+    std::cout << "1 XOR 1 = " << nn.activate({1, 1}).out(1) << std::endl;
+    std::cout << "0 OR 1 = "  << nn.activate({0, 1}).out()  << std::endl;
 ```
 
 #### Topology methods:
