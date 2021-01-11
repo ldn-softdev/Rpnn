@@ -961,7 +961,7 @@ here's an example how to to create and train Rpnn for XOR, OR, AND problem (i.e.
       .converge(10000);				// find solution
 
     // Offload NN brains into the file
-    std::ofstream file("oxa.bin", std::ios::binary);
+    std::ofstream file("oxa.bin", std::ios::binary);	// open file
     file << std::noskipws << Blob(nn);		// dump (serialize) NN to file
 ```
 Now the counterpart - reading a (trained) Rpnn brains from the file and activating with user data:
@@ -970,7 +970,8 @@ Now the counterpart - reading a (trained) Rpnn brains from the file and activati
     Blob b(std::istream_iterator<char>(std::ifstream{"oxa.bin", std::ios::binary}>>std::noskipws),
            std::istream_iterator<char>{});	// read serialized NN from file into blob
 
-    Rpnn nn(b);					// Create Rpnn obj & de-serialize blob into NN 
+    Rpnn nn(b);					// Create Rpnn obj & de-serialize blob into NN
+    // the two above declarations coudl be combined into one: Rpnn nn(Blob(...));
 
     // activate varous channels
     std::cout << "1 AND 0 = " << nn.activate({1, 0}).out(2) << std::endl; 
@@ -981,9 +982,10 @@ Now the counterpart - reading a (trained) Rpnn brains from the file and activati
 #### Topology methods:
 
 ```
-    Rpnn nn;		// create RPNN object - there are no other forms for constructor
-			// copy constructor exist, but rather performs cloning function
-			// move constructor is deleted (but that might be easily lifted in the future)
+    Rpnn nn;		// The copy constructor exist, but rather performs a cloning operation;
+			// the move constructor is deleted (but that might be easily lifted in the future)
+			// there's one another forms for constructor:
+			// 	Rpnn(Blob & blob);  - it restores Rpnn state from the blob
 
     nn.full_mesh(..);	// it's best to begin with creating a skeleton of topology:
 			// full_mesh method exists in two variants:
@@ -991,11 +993,46 @@ Now the counterpart - reading a (trained) Rpnn brains from the file and activati
 			//   	full_mesh(5,3,2,3) - 5 receptors, 3 neurons in 1st hidden layer, 2 neurons in 2nd
 			//                           hidden layer, 3 output neurons
 			// 2. accepts a templated STL trivial container (std::vector, std::list, std::deque, etc)
-			//	std::vector<int> my_topology{5,2,3};
+			//	std::vector<int> my_topology{5,3,2,3};
 			//	full_mesh(my_topology);
 ```
 
-If by chance a _full-mesh_ topology is not good enough, then it's possible to modify it by _growing_ and _pruning_ synapses:
+If by chance a _full-mesh_ topology is not good enough, then it's possible to modify it by _growing_ and _pruning_ synapses:  
+\- class `pnnNeuron` provides an access to the methods allowing linking, growing and pruning synapses.
+However, neurons themselves have to be accessed first.
+
+There are 3 types of neurons which typically a user would need an access to:
+1. _receptros_: these neurons don't have synapses and facilitate input patterns access
+2. _effectors_: these are non-receptors - i.e., neurons with synapses 
+3. _output_neurons_: these are the effectors in the last (output) layer
+
+Structurally, all the neurons are being held in the sequentual container (`std::list`) and could be accessed using following iterators:
+
+```
+                         neurons().begin()      effectors_itr()
+                               |                       |
+                               v                       v
+ std::list<rpnnNeuron>:      ("1"),  (R1)  ...  (Rn)  (E1) ... (En-m), (O1) .. (Om)
+                                      ^                                 ^
+                                      |                                 |
+                                receptors_itr()                output_neurons_itr()
+```
+Thus:  
+\- All the neurons are accessible via `neruons()` container and its iterators `neurons().begin()` -> `neurons().end()`  
+\- all receptrors are accessible via `receptors_itr()` -> `effectors_itr()` iterators  
+\- all effectors (output neurons are the effectors too) are accessible via `effectors_itr()` -> `neurons().end()`  
+\- all the output neurons are accessible via `output_neurons_itr()` -> `neurons().end()`  
+
+> The first neuron is always a reserved neuron (a.k.a "the one") - it's a specially reserved empty receptor, all the effectors should have synapses
+> towards this neuron and it's better not to mess up with it (as it will damage the NN ability to function properly);
+> the effectors linkage to "the one" is maintained by the class itself and does not require any of overhead from the user
+
+So, now that any of neurons can be accessed (via itterators), then following neurons methods exist to manage their synapses:
+- `linkup_synapse(rpnnNeuron &)          // link synapse to neuron by addr`
+-  `grow_synapses(idx)`           
+-  `prune_synapses()`
+ 
+
 ```
 ...
 ```
