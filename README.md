@@ -15,7 +15,7 @@ a number of advantages over the standard backprop mechanism:
 - the configuration of the _rprop_ is simple and not as complex and sensitive as the standard backprop's
 - this implementation provides auto normalization of outputs and optionally of the inputs 
 ([why inputs may require normalization](https://github.com/ldn-softdev/Rpnn#default-parameters))
-- the framework is fully and easily SERSES'able [link TBU]
+- the framework is fully and easily SERDES'able [link TBU]
 - the framework also support multi-class classification (support of _Softmax_ logistic at the output perceptron)
 - the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence
 - the framework provides a weight bouncer class capable of finding a better (deeper) minimum in absence of the global one
@@ -52,13 +52,15 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
       * [Other supported options](https://github.com/ldn-softdev/Rpnn#other-supported-options)
 2. [Study Examples](https://github.com/ldn-softdev/Rpnn#study-examples) 
     * [Hello World!](https://github.com/ldn-softdev/Rpnn#hello-world)
+    * [Enumerated patterns](https://github.com/ldn-softdev/Rpnn#enumerated-patterns)
     * [Multi-class](https://github.com/ldn-softdev/Rpnn#multi-class)
     * [Classification as probability](https://github.com/ldn-softdev/Rpnn#classification-as-probability)
     * [Couple classification examples from internet](https://github.com/ldn-softdev/Rpnn#couple-classification-examples-from-internet)
-    	* [Iris classification](https://github.com/ldn-softdev/Rpnn#iris-classification)
-    	* [Car Evaluation](https://github.com/ldn-softdev/Rpnn#car-evaluation)
+      * [Iris classification](https://github.com/ldn-softdev/Rpnn#iris-classification)
+      * [Car Evaluation](https://github.com/ldn-softdev/Rpnn#car-evaluation)
 3. [C++ class user interface](https://github.com/ldn-softdev/Rpnn#c-class-user-interface)
-    * [Essensial SYNOPSIS](https://github.com/ldn-softdev/Rpnn#Essensial-SYNOPSIS)
+    * [Essential SYNOPSIS](https://github.com/ldn-softdev/Rpnn#Essensial-SYNOPSIS)
+      * [Topology methods](https://github.com/ldn-softdev/Rpnn#topology-methods)
 
 
 ## cli toy
@@ -614,6 +616,62 @@ bash $
 That shows that the network has learnt the training material properly.
 
 
+#### Enumerated patterns
+`rpn` can accept not only numerical input/output patterns but also symbolical (per each input/output channel individually).
+When symbolical input is detected, all symbolic tokens are tracked and enumerated, i.e., internally translated into respective
+ordinal numerical values.
+
+Because enumeration always occurs from the first seen token in each channel (receptor/ output neuron) separately (individually), such inputs can
+be used only when the channel values (input/output) are independent from each other.
+
+Say, we want to train the NN for XOR problem encoding signals `0` as `low` and `1` as `high`.
+If we do it like this, it still works:
+```
+bash $ <<<"
+high, low  = high
+low,  high = high
+low,  low  = low
+high, high = low
+" rpn -t2,2,1
+Rpnn has converged at epoch 21 with error: 0.000462312
+bash $ 
+bash $ <<<"
+high, low  = high
+low,  high = high
+low,  low  = low
+high, high = low
+" rpn -r rpn.bin
+high
+high
+low
+low
+bash $ 
+```
+However, the signal mapping semantic here won't be like as one would expect. In fact, the above example corresponds to training this pattern:
+```
+0, 0 = 0
+1, 1 = 0
+1, 0 = 1
+0, 1 = 1
+```
+I.e. in the 1st input channel `high`,`low` tokens correspond respectively to `0`,`1` signals; th 2nd input channel do `low`,`high`to `0`,`1` respectively.
+the output channel's `high`,`low` tokens correspond respectively to `0`,`1`. 
+It can be observed when showing real converged numbers instead of tokens:
+```
+bash $ <<<"
+high, low  = high
+low,  high = high
+low,  low  = low
+high, high = low
+" rpn -r rpn.bin -u
+0.00837045
+0.0114564
+0.970546
+0.999975
+bash $ 
+```
+
+
 #### Multi-class
 The above example illustrates a _binary_ classification, though it's not the only possible type of classification, sometimes tasks require multiple classes.
 E.g.: the same solution could be expressed as 3 classes:
@@ -869,35 +927,77 @@ C++ class interface is rather simple. Begin with including a header file:
 #include "lib/rpnn.hpp"
 ```
 That hearder file contans following classes:
- - _`class rpnnSynapse`_: not meant for user - used only by `rpnnNeuron` class, the constructor is made public for `SERDES` interface and for UT'ing only 
- - _`class rpnnNeuron`_: not meant for user - used by `Rpnn` calss, the constructor is made public for `SERDES` interface and for UT'ing only 
- - _`class rpnnBouncer`_: default class facilitating NN weight assignments (via randomization), a user may create own weight policy class as a child class of this one 
+ - _`class rpnnSynapse`_: facilitates synapse (neurons linkage) as well as (connection) weight
+ - _`class rpnnNeuron`_: facilitates neurons - holds connecting synapses, logistic function and link to the input patterns (for receptors only)  
+ - _`class rpnnBouncer`_: default class facilitating NN weight assignments (via randomization) - allows plugging weight update methods
  - _`class Rpnn`_: user facing class facilitating Resilient backPropagation Neural Network
- - _`class uniformBouncer`_: an example class (for a reference) - a child class of `rpnnBouncer` providing a uniform weight distribution (rather than random) 
- - _`class blmFinder`_ - a child class of `rpnnBouncer` facilitating a search of a better LM via spawning concurrent (multithreaded) copies of a host RPNN class 
+ - _`class uniformBouncer`_: an example of pluggable functor class (for a reference) providing a uniform weight distribution (rather than default random) 
+ - _`class blmFinder`_ - a child class of `rpnnBouncer` facilitating a search of a better LM via spawning concurrent (multithreaded) copies of Rpnn host 
 
-#### Essensial SYNOPSIS:
+> `Rpnn` (and other classes user-facing methods) support _fluent_ notation
+
+
+### Essential SYNOPSIS:
+here's an example how to to create and train Rpnn for XOR, OR, AND problem (i.e. 3 output classes) with statically hardcoded data:
+```
+    // ...
+    // input patterns:
+    std::vector<std::vector<double>>
+    	input_ptrn = {{0,1,0,1},		// 1st channel (to the 1st receptor)
+                      {0,0,1,1}};		// 2nd channel (to the 2nd receptor)
+    // target patterns:
+    std::vector<std::vector<double>>
+    	target_ptrn = {{0,1,1,1},		// OR output channel
+                       {0,1,1,0},		// XOR output channel
+                       {0,0,0,1}};		// AND output channel
+
+    // configuring and training Rpnn
+    Rpnn nn;
+    nn.full_mesh(2, 2, 3)			// begin with defining topology
+      .load_patterns(input_ptrn, target_ptrn)	// load up in/out patterns, required
+      .lm_detection(nn.synapse_count() * 3)	// engage LM trap detection (optional)
+      .target_error(0.00001)			// in this example it's optional
+      .normalize()				// in this example not strictly required
+      .converge(10000);				// find solution
+
+    // Offload NN brains into the file
+    std::ofstream file("oxa.bin", ios::binary);
+    file << std::noskipws << Blob(nn);		// dump (serialize) NN to file
+```
+Now the counterpart reading a (trained) Rpnn brains from the file and activating with user data;
+```
+    // ...
+    Blob b(std::istream_iterator<char>(ifstream{"oxa.bin", ios::binary}>>noskipws),
+           std::istream_iterator<char>{});	// read serialized NN from file into blob
+    Rpnn nn;
+    b.restore(nn);				// de-serialize blob into NN 
+
+    // activate varous channels
+    std::cout << "1 AND 0 = " << nn.acrivate({1, 0}).out(2) << std::endl; 
+    std::cout << "1 XOR 1 = " << nn.acrivate({1, 1}).out(1) << std::endl;
+    std::cout << "0 OR 1 = "  << nn.acrivate({0, 1}).out()  << std::endl;
+```
+
+#### Topology methods:
+
 ```
     Rpnn nn;		// create RPNN object - there are no other forms for constructor
 			// copy constructor exist, but rather performs cloning function
-			// move constructor is deleted (but that might be lifted in the future)
+			// move constructor is deleted (but that might be easily lifted in the future)
 
     nn.full_mesh(..);	// it's best to begin with creating a skeleton of topology:
 			// full_mesh method exists in two variants:
 			// 1. variadic form - accepts topology as enumerated perceptrons, e.g.:
-			//   	full_mesh(5,2,3) - 5 receptors, 2 hidden neurons, 3 output neurons
+			//   	full_mesh(5,3,2,3) - 5 receptors, 3 neurons in 1st hidden layer, 2 neurons in 2nd
+			//                           hidden layer, 3 output neurons
 			// 2. accepts a templated STL trivial container (std::vector, std::list, std::deque, etc)
 			//	std::vector<int> my_topology{5,2,3};
 			//	full_mesh(my_topology);
 ```
-> Note: Rpnn (and other user-facing class methods) support _fluent_ notation
 
-If by chance a _full-mesh_ topology is not enough, then it's possible to modify it by _growing_ and _pruning_ synapses:
+If by chance a _full-mesh_ topology is not good enough, then it's possible to modify it by _growing_ and _pruning_ synapses:
+```
 ...
-
-
-
-
-
+```
 
 
