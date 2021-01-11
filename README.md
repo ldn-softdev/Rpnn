@@ -956,7 +956,7 @@ here's an example how to to create and train Rpnn for XOR, OR, AND problem (i.e.
     nn.full_mesh(2, 2, 3)			// begin with defining topology
       .normalize()				// optional, but if used, muse be called before load_patterns(..) 
       .load_patterns(input_ptrn, target_ptrn)	// load up in/out patterns, required
-      .lm_detection(nn.synapse_count() * 3)	// engage LM trap detection (optional)
+      .lm_detection(nn.synapse_count() * 3)	// engage LM trap detection (optional, but desirable)
       .target_error(0.00001)			// in this example it's optional
       .converge(10000);				// find solution
 
