@@ -236,7 +236,7 @@ option `-t` lets setting up topology and interconnects adjacent layers (perceptr
 .configure(), target error: 0.001
 ```
 \- option `-e` allows setting the target error for convergence  
-> network considers convergence done when the network's global error (i.e. the error across all the output neurons) drops below the target error
+> network considers convergence done when the network's global error (i.e., the error across all the output neurons) drops below the target error
 
 Some tasks might not even have a global minimum solution (e.g.: approximations/regressions, or even classifications with a weak correlation),
 thus manual adjusting target error (to the higher end) might be required.
@@ -300,8 +300,8 @@ bash $
 \- the framework provides a way to detect if during the convergence it ends up in the local minimum valley so that it could re-initialize all its
 weights and bounce itself out of the local minimum trap.  
 That mechanism is facilitated with the tracking the error trail of each epoch's global error. The size of such trail is typically proportional to
-the total number of weights in a given topology with the default factor of `-m 4` (i.e. times `4`). Though it does not always work optimally and
-sometimes requires adjustments (to a shorter factor, e.g. `2` or `3` - to speedup convergence) or a longer one (to ensure a more reliable LM detection).
+the total number of weights in a given topology with the default factor of `-m 4` (i.e., times `4`). Though it does not always work optimally and
+sometimes requires adjustments (to a shorter factor, e.g.: `2` or `3` - to speedup convergence) or a longer one (to ensure a more reliable LM detection).
 > The mechanism poses a dilemma though: LM trap detection drastically improves chances for a successful converge, but the trail size slows down the
 convergence itself (the bigger trail size, the slower training runs) - finding a right balance is the subject of some research for a given problem solution.
 
@@ -342,7 +342,7 @@ For example, it's possible to alter all the values in one go, like this:
 
 Description:
  * `BLM_RDCE` - reduce factor for _best local minimum_ search mode - varies from `1` (exclusively) to to any higher number - the higher number,
- the harder `Rpnn` will try finding the best (deepest) LM (i.e. more attempt will be made). The factor is exponential though, so numbers
+ the harder `Rpnn` will try finding the best (deepest) LM (i.e., more attempt will be made). The factor is exponential though, so numbers
  above `10` might already severely impact resolution time (depends on many other factors too - size of the topology, size of the `LMD_PTRN`, etc)
  * `DW_FACTOR` - a momentum factor to increase synapse's _delta weights_ if gradient sign did not change. This factor also has an exponential effect
  and setting it to too big values may result that `Rpnn` will be overshooting minimums too frequently. Setting it to values lower or too close to `1`
@@ -374,7 +374,7 @@ To enable such mode (a.k.a. _BLM search_) is to give option `-b` followed by the
 will correspond to the maximum number of supported hardware threads (#cores times #threads per core).
 
 The target error (`-e`) in such case serves as a twofold exit criteria:
-- if NN able to converge below the target error (i.e. a global minimum is found)
+- if NN able to converge below the target error (i.e., a global minimum is found)
 - if adjusted internal goal error's delta (with found so far best minimum) drops below target error
 > adjustment of the _goal error_ occurs every time when any `Rpnn` instance detects LM and LM's error is worse than found so far best minimum - then
 the _goal error_ is adjusted by `BLM_RDCE` factor).
@@ -654,7 +654,7 @@ However, the signal mapping semantic here won't be like as one would expect. In 
 1, 0 = 1
 0, 1 = 1
 ```
-I.e. in the 1st input channel `high`,`low` tokens correspond respectively to `0`,`1` signals; th 2nd input channel do `low`,`high`to `0`,`1` respectively.
+I.e., in the 1st input channel `high`,`low` tokens correspond respectively to `0`,`1` signals; th 2nd input channel do `low`,`high`to `0`,`1` respectively.
 the output channel's `high`,`low` tokens correspond respectively to `0`,`1`. 
 It can be observed when showing real converged numbers instead of tokens:
 ```
@@ -787,7 +787,7 @@ But do we really need to know that info about the input/output data? No, really 
 number of inputs channels (`4`) and number of output classes (`1`).
 
 Normally, NN are trained to be able to _generalize_ rather then _memorize_ the data. Thus, selecting the training set requires a careful selection of
-the _representative_ data out of the input sets. Then train the NN on the training set and verify that it works on the rest of the data (i.e. the data
+the _representative_ data out of the input sets. Then train the NN on the training set and verify that it works on the rest of the data (i.e., the data
 that it has never seen before).
 
 Let's skip that careful selection and just randomly pick a half of the set (hoping it would be representative enough):
@@ -938,7 +938,7 @@ That hearder file contans following classes:
 
 
 ### Essential SYNOPSIS:
-here's an example how to to create and train Rpnn for XOR, OR, AND problem (i.e. 3 output classes) with statically hardcoded data:
+here's an example how to to create and train Rpnn for XOR, OR, AND problem (i.e., 3 output classes) with statically hardcoded data:
 ```
     // ...
     // input patterns:
