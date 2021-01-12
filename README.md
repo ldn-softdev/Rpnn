@@ -59,7 +59,7 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
       * [Iris classification](https://github.com/ldn-softdev/Rpnn#iris-classification)
       * [Car Evaluation](https://github.com/ldn-softdev/Rpnn#car-evaluation)
 3. [C++ class user interface](https://github.com/ldn-softdev/Rpnn#c-class-user-interface)
-    * [Essential SYNOPSIS](https://github.com/ldn-softdev/Rpnn#Essensial-SYNOPSIS)
+    * [Essential SYNOPSIS](https://github.com/ldn-softdev/Rpnn#essential-synopsis)
       * [Topology methods](https://github.com/ldn-softdev/Rpnn#topology-methods)
 
 
@@ -1018,20 +1018,27 @@ Structurally, all the neurons are being held in the sequentual container (`std::
                                 receptors_itr()                output_neurons_itr()
 ```
 Thus:  
-\- All the neurons are accessible via `neruons()` container and its iterators `neurons().begin()` -> `neurons().end()`  
+\- All neurons are accessible via `neruons()` container and its iterators `neurons().begin()` -> `neurons().end()`  
 \- all receptrors are accessible via `receptors_itr()` -> `effectors_itr()` iterators  
 \- all effectors (output neurons are the effectors too) are accessible via `effectors_itr()` -> `neurons().end()`  
 \- all the output neurons are accessible via `output_neurons_itr()` -> `neurons().end()`  
 
-> The first neuron is always a reserved neuron (a.k.a "the one") - it's a specially reserved empty receptor, all the effectors should have synapses
-> towards this neuron and it's better not to mess up with it (as it will damage the NN ability to function properly);
+> The first neuron is always a reserved neuron (a.k.a "the one") - it's a specially reserved empty receptor, all the effectors should
+> have synapses towards this neuron and it's better not to mess up with it (as it will damage the NN ability to function properly);
 > the effectors linkage to "the one" is maintained by the class itself and does not require any of overhead from the user
 
 So, now that any of neurons can be accessed (via itterators), then following neurons methods exist to manage their synapses:
-- `linkup_synapse(rpnnNeuron &)          // link synapse to neuron by addr`
--  `grow_synapses(idx)`           
--  `prune_synapses()`
- 
+- `linkup_synapse(rpnnNeuron &)`: link synapse to a neuron by its address
+-  `grow_synapses(idx1, ..)`: link synapse(s) by their index in the std::list container (variadic arguments)
+-  `prune_synapses(idx1, ..)`: prune synapse(s) to neurons by its (neuron's) index (variadic arguments)
+
+E.g., to link a first effector to the first receptor, it can be done either way:
+```
+    nn.effectors_itr()->linkup_synapse(*nn.receptors_itr());
+    // or
+    nn.effectors_itr()->grow_synapses(1);
+```
+
 
 ```
 ...
