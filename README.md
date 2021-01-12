@@ -61,6 +61,7 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
 3. [C++ class user interface](https://github.com/ldn-softdev/Rpnn#c-class-user-interface)
     * [Essential SYNOPSIS](https://github.com/ldn-softdev/Rpnn#essential-synopsis)
       * [Topology methods](https://github.com/ldn-softdev/Rpnn#topology-methods)
+      * [Loading data patterns](https://github.com/ldn-softdev/Rpnn#loading-data-patterns)
 
 
 ## cli toy
@@ -1039,6 +1040,48 @@ E.g., to link a first effector to the first receptor, it can be done either way:
     nn.effectors_itr()->grow_synapses(1);
 ```
 
+#### Loading data patterns:
+Loading data patterns is required at he learning phase and might be also used at post-training phase:
+```
+    load_patterns(..);
+```
+This method can be used to load up input patterns alone, or both input and & target patterns together.
+Before the training, it's used to load up both input and target data.
+
+The method works with `std::vector<std::vector<double>>` container type, where outer container holds as many channels (inner containers)
+as there were configured receptros. Inner containers hold series of data for each (own) receptors - the size of all inner containers must
+be the same (otherwise an exception will be thrown: `Rpnn::stdException::receptors_misconfigured`)
+
+1. When input data container is passed as a _r-value reference_, then it's _moved_ to internal class storage, e.g.:
+    ```
+        nn.load_patterns({{0, 0},{1, 1}});	// input patterns moved into nn's internal storage
+    ```
+    Otherwise (_l-value_ passed), internal storage won't be used, instead receptros will _link_ to respective channels:
+    ```
+    std::vector<std::vector<double>>
+    	input_ptrn = {{0,1,0,1}, {0,0,1}};
+    nn.load_patterns(input_ptrn);	// two receptros will be linked to respecitive containers of input_ptrn
+    ```
+2. if normalization of input data is engaged (via `normalize()` call), then  
+    a) the method must be called prior calling `load_patterns(..)` (otherwise exception will be thrown:
+    `Rpnn::stdException::norm_engaged_after_inputs_loaded`)  
+    b) no matter _how_ you pass input data - it'll be _copied_ into internal storage and _normalized_
+    ```
+    std::vector<std::vector<double>>
+    	input_ptrn = {{0,1,0,1}, {0,0,1}};
+    nn.normalize()
+      .load_patterns(input_ptrn);	// input patterns copied into nn's internal storage and normalized
+    ```
+3. Passing target patterns anyhow will always cause _copying_ and _normalizing_ of the target data: it's the class requirement to have
+output data always normalized, therefore they are always copied.
+    ````
+    std::vector<std::vector<double>>
+    	input_ptrn = {{0,1,0,1}, {0,0,1}};
+    nn.load_patterns(input_ptrn,	// inputs will be linked to the respective receptors
+                     {{0,1,1,1}});	// targets will be copied & normalized into nn's inner storage
+    ````
+    > Normalization bounds of targets is determined automatically from output neuron's transfer function (where it converges on + / - infinity)
+    
 
 ```
 ...
