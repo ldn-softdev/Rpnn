@@ -62,6 +62,7 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
     * [Essential SYNOPSIS](https://github.com/ldn-softdev/Rpnn#essential-synopsis)
       * [Topology methods](https://github.com/ldn-softdev/Rpnn#topology-methods)
       * [Loading data patterns](https://github.com/ldn-softdev/Rpnn#loading-data-patterns)
+      * [Other configuration methods](https://github.com/ldn-softdev/Rpnn#other-configuration-methods)
 
 
 ## cli toy
@@ -991,8 +992,8 @@ Now the counterpart - reading a (trained) Rpnn brains from the file and activati
     nn.full_mesh(..);	// it's best to begin with creating a skeleton of topology:
 			// full_mesh method exists in two variants:
 			// 1. variadic form - accepts topology as enumerated perceptrons, e.g.:
-			//   	full_mesh(5,3,2,3) - 5 receptors, 3 neurons in 1st hidden layer, 2 neurons in 2nd
-			//                           hidden layer, 3 output neurons
+			//   	full_mesh(5,3,2,3); - 5 receptors, 3 neurons in 1st hidden layer, 2 neurons in 2nd
+			//                            hidden layer, 3 output neurons
 			// 2. accepts a templated STL trivial container (std::vector, std::list, std::deque, etc)
 			//	std::vector<int> my_topology{5,3,2,3};
 			//	full_mesh(my_topology);
@@ -1042,6 +1043,7 @@ E.g., to link a first effector to the first receptor, it can be done either way:
 
 #### Loading data patterns:
 Loading data patterns is required at he learning phase and might be also used at post-training phase:
+
 ```
     load_patterns(..);
 ```
@@ -1069,19 +1071,29 @@ be the same (otherwise an exception will be thrown: `Rpnn::stdException::recepto
     ```
     std::vector<std::vector<double>>
     	input_ptrn = {{0,1,0,1}, {0,0,1}};
-    nn.normalize()
+    nn.normalize(-5, 5)			// optionally normalize() can accept min/max bounds
       .load_patterns(input_ptrn);	// input patterns copied into nn's internal storage and normalized
     ```
 3. Passing target patterns anyhow will always cause _copying_ and _normalizing_ of the target data: it's the class requirement to have
 output data always normalized, therefore they are always copied.
-    ````
+    ```
     std::vector<std::vector<double>>
     	input_ptrn = {{0,1,0,1}, {0,0,1}};
     nn.load_patterns(input_ptrn,	// inputs will be linked to the respective receptors
                      {{0,1,1,1}});	// targets will be copied & normalized into nn's inner storage
-    ````
+    ```
     > Normalization bounds of targets is determined automatically from output neuron's transfer function (where it converges on + / - infinity)
-    
+
+
+#### Other configuration methods:
+- _`target_error(double)`_ - assign a _target error_ for convergence when searching for a global minimum (GM); when GM does not exists, this value
+    (together with global parameber `BLM_RDCE` define how long/hard the NN will try searching the best LM - the lower value the longer it will try
+
+- _`lm_detection(size_t)`_ - engages LM trap detection, the argument defines the global error trail size. Typically the trails size must be greater
+    than number of weights in the NN (`synapse_count()`), thus it's better to call with some factror, e.g.:
+    ```
+    nn.lm_detection(nn.synapse_count() * 3);
+    ```
 
 ```
 ...
