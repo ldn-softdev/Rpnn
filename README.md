@@ -1087,14 +1087,26 @@ output data always normalized, therefore they are always copied.
 
 #### Other configuration methods:
 - _`target_error(double)`_ - assign a _target error_ for convergence when searching for a global minimum (GM); when GM does not exists, this value
-    (together with global parameber `BLM_RDCE` define how long/hard the NN will try searching the best LM - the lower value the longer it will try
+    (together with global parameter `BLM_RDCE` define how long/hard the NN will try searching the best LM - the lower value the longer it will try.
+    Default value is `0.01`
 
-- _`lm_detection(size_t)`_ - engages LM trap detection, the argument defines the global error trail size. Typically the trails size must be greater
-    than number of weights in the NN (`synapse_count()`), thus it's better to call with some factror, e.g.:
+- _`lm_detection(size_t)`_ - engages LM trap detection, the argument defines the global error trail size. Typically the trail size must be greater
+    than number of weights in the NN (`synapse_count()`), thus it's better to call with some factor, e.g.:
     ```
     nn.lm_detection(nn.synapse_count() * 3);
     ```
+    Too short trail size won't be able to detect LM effectively, while too long will slow down convergence - thus, finding the right balance
+    for a given type of problem solution migh require some research. Default trail size is `0` (i.e., LM trap detection is disabled)
+    
+- _`stop_on_nan(bool)`_ - instructs NN to stop convergence if _`global_error()`_ (error calculated by cost function averaged by all output neurons)
+    turns `NaN`. That typically happens when certain configurations (combination of parameters) are incompatible
+    
+- _`cost_function(double (*)(double, double))`_ - allows plugging an error function (c-style), which accepts 2 _doubles_ and returns the error between them;
+    Class provides 2 cost functions: _`Sse`_ - sum squared error and _`Xntropy`_ - cross entropy. Default is _`Sse`_, cross entropy typically would be
+    used with _Softmax_ activation at output neurons 
 
+
+    
 ```
 ...
 ```
