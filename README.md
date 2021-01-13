@@ -80,7 +80,7 @@ usage: rpn [-adhu] [-G N,M] [-P param] [-S separators] [-b threads] [-c cost_fun
            [-r file_name] [-s seed] [-t perceptrons] [epochs]
 
 Resilient Propagation Neural network (https://github.com/ldn-softdev/Rpnn)
-Version 1.04 (built on Jan  7 2021), developed by Dmitry Lyssenko (ldn.softdev@gmail.com)
+Version 1.05 (built on Jan 13 2021), developed by Dmitry Lyssenko (ldn.softdev@gmail.com)
 
 optional arguments:
  -a             plug in a uniform bouncer (alternative to randomizer)
