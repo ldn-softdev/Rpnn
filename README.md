@@ -63,6 +63,7 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
       * [Topology methods](https://github.com/ldn-softdev/Rpnn#topology-methods)
       * [Loading data patterns](https://github.com/ldn-softdev/Rpnn#loading-data-patterns)
       * [Other configuration methods](https://github.com/ldn-softdev/Rpnn#other-configuration-methods)
+    * [Weight updater](https://github.com/ldn-softdev/Rpnn#weight-updater)
 
 
 ## cli toy
@@ -940,7 +941,7 @@ That hearder file contans following classes:
 
 
 ### Essential SYNOPSIS:
-here's an example how to to create and train Rpnn for XOR, OR, AND problem (i.e., 3 output classes) with statically hardcoded data:
+here's an example how to to create and train `Rpnn` for _XOR_, _OR_, and _AND_ problem (i.e., 3 output classes) with statically hardcoded data:
 ```
     // ...
     // input patterns:
@@ -1004,11 +1005,11 @@ If by chance a _full-mesh_ topology is not good enough, then it's possible to mo
 However, neurons themselves have to be accessed first.
 
 There are 3 types of neurons which typically a user would need an access to:
-1. _receptros_: these neurons don't have synapses and facilitate input patterns access
+1. _receptors_: these neurons don't have synapses and facilitate input patterns access
 2. _effectors_: these are non-receptors - i.e., neurons with synapses 
 3. _output_neurons_: these are the effectors in the last (output) layer
 
-Structurally, all the neurons are being held in the sequentual container (`std::list`) and could be accessed using following iterators:
+Structurally, all the neurons are being held in the sequential container (`std::list`) and could be accessed using following iterators:
 
 ```
                          neurons().begin()      effectors_itr()
@@ -1020,8 +1021,8 @@ Structurally, all the neurons are being held in the sequentual container (`std::
                                 receptors_itr()                output_neurons_itr()
 ```
 Thus:  
-\- All neurons are accessible via `neruons()` container and its iterators `neurons().begin()` -> `neurons().end()`  
-\- all receptrors are accessible via `receptors_itr()` -> `effectors_itr()` iterators  
+\- All neurons are accessible via `neurons()` container and its iterators `neurons().begin()` -> `neurons().end()`  
+\- all receptors are accessible via `receptors_itr()` -> `effectors_itr()` iterators  
 \- all effectors (output neurons are the effectors too) are accessible via `effectors_itr()` -> `neurons().end()`  
 \- all the output neurons are accessible via `output_neurons_itr()` -> `neurons().end()`  
 
@@ -1029,7 +1030,7 @@ Thus:
 > have synapses towards this neuron and it's better not to mess up with it (as it will damage the NN ability to function properly);
 > the effectors linkage to "the one" is maintained by the class itself and does not require any of overhead from the user
 
-So, now that any of neurons can be accessed (via itterators), then following neurons methods exist to manage their synapses:
+So, now that any of neurons can be accessed (via iterators), then following neurons methods exist to manage their synapses:
 - `linkup_synapse(rpnnNeuron &)`: link synapse to a neuron by its address
 -  `grow_synapses(idx1, ..)`: link synapse(s) by their index in the std::list container (variadic arguments)
 -  `prune_synapses(idx1, ..)`: prune synapse(s) to neurons by its (neuron's) index (variadic arguments)
@@ -1051,18 +1052,18 @@ This method can be used to load up input patterns alone, or both input and & tar
 Before the training, it's used to load up both input and target data.
 
 The method works with `std::vector<std::vector<double>>` container type, where outer container holds as many channels (inner containers)
-as there were configured receptros. Inner containers hold series of data for each (own) receptors - the size of all inner containers must
+as there were configured receptors. Inner containers hold series of data for each (own) receptors - the size of all inner containers must
 be the same (otherwise an exception will be thrown: `Rpnn::stdException::receptors_misconfigured`)
 
 1. When input data container is passed as a _r-value reference_, then it's _moved_ to internal class storage, e.g.:
     ```
         nn.load_patterns({{0, 0},{1, 1}});	// input patterns moved into nn's internal storage
     ```
-    Otherwise (_l-value_ passed), internal storage won't be used, instead receptros will _link_ to respective channels:
+    Otherwise (_l-value_ passed), internal storage won't be used, instead receptors will _link_ to respective channels:
     ```
     std::vector<std::vector<double>>
     	input_ptrn = {{0,1,0,1}, {0,0,1}};
-    nn.load_patterns(input_ptrn);	// two receptros will be linked to respecitive containers of input_ptrn
+    nn.load_patterns(input_ptrn);	// two receptors will be linked to respective containers of input_ptrn
     ```
 2. if normalization of input data is engaged (via `normalize()` call), then  
     a) the method must be called prior calling `load_patterns(..)` (otherwise exception will be thrown:
@@ -1086,29 +1087,66 @@ output data always normalized, therefore they are always copied.
 
 
 #### Other configuration methods:
-- _`target_error(double)`_ - assign a _target error_ for convergence when searching for a global minimum (GM); when GM does not exists, this value
-    (together with global parameter `BLM_RDCE` define how long/hard the NN will try searching the best LM - the lower value the longer it will try.
+- _`Rpnn::target_error(double err)`_ - assign a _target error_ for convergence when searching for a global minimum (GM); when GM does not exists, this
+    value (together with global parameter `BLM_RDCE` define how long/hard the NN will try searching the best LM - the lower value the longer it will try.
     Default value is `0.01`
 
-- _`lm_detection(size_t)`_ - engages LM trap detection, the argument defines the global error trail size. Typically the trail size must be greater
-    than number of weights in the NN (`synapse_count()`), thus it's better to call with some factor, e.g.:
+- _`Rpnn::lm_detection(size_t size)`_ - engages LM trap detection, the argument defines the global error trail size. Typically the trail size must be
+    greater than number of weights in the NN (`synapse_count()`), thus it's better to call with some factor, e.g.:
     ```
     nn.lm_detection(nn.synapse_count() * 3);
     ```
     Too short trail size won't be able to detect LM effectively, while too long will slow down convergence - thus, finding the right balance
     for a given type of problem solution migh require some research. Default trail size is `0` (i.e., LM trap detection is disabled)
     
-- _`stop_on_nan(bool)`_ - instructs NN to stop convergence if _`global_error()`_ (error calculated by cost function averaged by all output neurons)
-    turns `NaN`. That typically happens when certain configurations (combination of parameters) are incompatible
+- _`Rpnn::stop_on_nan(bool)`_ - instructs NN to stop convergence if _`global_error()`_ (error calculated by cost function averaged by all output neurons)
+    turns `NaN`. That typically happens when certain configurations (combination of parameters) are incompatible. By default it's on.
     
-- _`cost_function(double (*)(double, double))`_ - allows plugging an error function (c-style), which accepts 2 _doubles_ and returns the error between them;
-    Class provides 2 cost functions: _`Sse`_ - sum squared error and _`Xntropy`_ - cross entropy. Default is _`Sse`_, cross entropy typically would be
-    used with _Softmax_ activation at output neurons 
+- _`Rpnn::cost_function(double (*)(double, double))`_ - allows plugging an error function (c-style), which accepts 2 _doubles_ and returns the error between them;
+    Class provides 2 cost functions: _`Sse`_ - _sum squared error_ and _`Xntropy`_ - _cross entropy_. Default is _`Sse`_, _`Xntropy`_ typically would be
+    used with _Softmax_ activation at output neurons.
 
+- _`rpnnNeuron::transfer_func(double (*)(double, rpnnNeuron *))`_ - neuron's method which allows plugging a logistic function (c-style). The pluggable accepts
+    two parameters:  
+      - _`double`_ - implemented function's operand  
+      - _`rpnnNeuron *`_ pointer to a calling neuron or _nullptr_ (_nullptr_ is only passed when the function is tested for its bounds)
+    By default each neuron is equipped with _`Sigmoid`_ transfer function.
 
-    
-```
-...
-```
+- _`normalize(double min, double max)`_ - enables/disables inputs normalization. _`min`_ == _`max`_ disables normalization. Defaults are `{-1, +1}`
+
+- _`gpm(const std::string &param, double val)`_ - lets setting Rpnn's [generic parameters](https://github.com/ldn-softdev/Rpnn#generic-parameters); the
+    counterparts _`gpm(void)`_ call allows reading the container with the default parameters (which is `std::map<std::string, double>`)
+
+- _`bouncer(rpnnBouncer &)`_ - allows plugging an override of the default _weight updater_
+
+- _`converge(size_t epochs)`_ - engages Rpnn to search for a solution with given data and configuration.
+
+#### Weight updater
+_Weight updater_ is designed as a class (rather than a method) to allow overriding the default behavior (which is random weight assignment). The class allows
+twofold override of the default behavior:
+
+1. By creating and plugging a child class, which has ability to override following _virtual_ methods:
+    - _`reset(void)`_: this method is called by _`Rpnn:converge(..)`_ only once the NN is untrained
+    - _`bounce(void)`_: this method is called by _`Rpnn:converge(..)`_ right after _`reset()`_ and once _LM trap detection_ is engaged and LM trap is
+    detected - i.e., the method is called each time when _NN's_ weights need to be bounced.  
+    Here's a synopsis of such override:
+    ```
+     Rpnn nn;
+     blmFinder blm;			// child class of rpnnBouncer overriding the weight bouncing policy 
+     // ...
+      nn.bouncer(blm);			// plug the override
+     // ...
+    ```
+2. By plugging own _`std::function`_ callable target into the _`rpnnBouncer`_. Here's a synopsis of such example:
+    ```
+    Rpnn nn;
+    uniformBouncer ub;			// functor facilitating own weight update policy
+    // ...
+    nn.bouncer().weight_updater(ub); 	// now ub.operator() will be called whenever nn need to bounce weights
+                                        // instead  
+    // ...
+    ```
+Both methods could be used together at the same time.
+
 
 
