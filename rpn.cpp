@@ -29,7 +29,7 @@
 using namespace std;
 
 #define PRGNAME "Resilient Propagation Neural network (https://github.com/ldn-softdev/Rpnn)"
-#define VERSION "1.04"
+#define VERSION "1.05"
 #define CREATOR "Dmitry Lyssenko"
 #define EMAIL "ldn.softdev@gmail.com"
 
