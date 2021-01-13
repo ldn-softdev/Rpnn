@@ -325,12 +325,12 @@ Rpn & Rpn::configure(void) {
  // input normalization
  stringstream ss;
  vector<double> norm = str_to_num(opt()[CHR(OPT_INN)].str(), 2);
- if(norm.front() != norm.back()) {
+ //if(norm.front() != norm.back()) {
   normalize(norm.front(), norm.back());
   if(normalizing())
    ss << " [" << input_normalization().front().base() << " to " << std::showpos
       << input_normalization().front().base() + input_normalization().front().range() << "]";
- }
+ //}
  DBG(0) DOUT() << std::boolalpha << "normalize inputs: " << normalizing() << ss.str() << endl;
 
  // local minimum detection

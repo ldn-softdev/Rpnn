@@ -431,10 +431,10 @@ class rpnnBouncer {
                          { return seed_; }
     void                seed(size_t x)
                          { rnd_.seed(x); }
-    virtual void        bounce(void)
-                         { b_(this); }
     virtual void        reset(void)                             // rpnnBouncer has no reset
                          { }
+    virtual void        bounce(void)
+                         { b_(this); }
     std::mt19937_64 &   rnd(void)
                          { return rnd_; }
     double              base(void) const
@@ -492,6 +492,7 @@ class Rpnn {
                 neuron_idx_out_of_range, \
                 illegal_logistic_at_output, \
                 loading_in_non_receptor, \
+                norm_engaged_after_inputs_loaded, \
                 insufficient_inputs, \
                 min_two_perceptrons_requied, \
                 perceptron_size_illegal, \
@@ -594,12 +595,19 @@ lNeuron::const_iterator output_neurons_itr(void) const
                          { return error_trail_.capacity(); }
     Rpnn &              lm_detection(size_t x)
                          { error_trail_.capacity(x); return *this; }
+    Rpnn &              reset_lm() {
+                         error_trail_.clear();                  // empty error_trail_ drives init,
+                         error_trail_.push_back(std::numeric_limits<double>::max());// non-empty
+                         return *this;
+                        }
 
 
     size_t              epoch(void) const
                          { return epoch_; }
     Rpnn &              epoch(size_t x)
                          { epoch_ = x; return *this; }
+    size_t              epochs(void) const
+                         { return epochs_; }
     double              min_step(void) const
                          { return MIN_STEP_; }
     Rpnn &              min_step(double x)
@@ -648,8 +656,15 @@ lNeuron::const_iterator output_neurons_itr(void) const
     bool                normalizing(void) const {               // is input normalization engaged?
                          return not nis_.empty();
                         }
-    Rpnn &              normalize(double min = -1., double max = 1.)
-                         { nis_.resize(1, Norm(min, max - min)); return *this; }
+    Rpnn &              normalize(double min = -1., double max = 1.) {
+                         // indicate normalization engagement, must be used before inputs loaded
+                         if(receptors_itr()->input_pattern() != nullptr)
+                          throw EXP(Rpnn::norm_engaged_after_inputs_loaded);
+                         if(min == max) nis_.clear();           // disable normalization
+                         else
+                          nis_.resize(1, Norm(min, max - min));
+                         return *this;
+                        }
     Rpnn &              activate(size_t p) {
                          for(auto ei = effectors_itr(); ei != neurons().end(); ei++)
                           ei->activate(p);
@@ -668,7 +683,6 @@ lNeuron::const_iterator output_neurons_itr(void) const
                           else ri->load(*ii);
                          return activate();
                         }
-    void                init_neurons_(void);
     Rpnn &              cost_function(c_func *cf)
                          { cf_ = cf; return *this; }
     c_func *            cost_function(void) const
@@ -702,7 +716,8 @@ lNeuron::const_iterator output_neurons_itr(void) const
     SERDES(Rpnn, input_sets_, nis_, target_sets_, nts_, neurons_,
                  &Rpnn::serdes_itr_, output_errors_, target_error_,
                  MIN_STEP_, MAX_STEP_, DW_FACTOR_, wb_, wbp_,
-                 Rpnn::cf_Sse, Rpnn::cf_Xntropy, cf_, epoch_, terminate_, error_trail_, gpm_)
+                 Rpnn::cf_Sse, Rpnn::cf_Xntropy, cf_,
+                 epoch_, epochs_, terminate_, error_trail_, gpm_)
 
     OUTABLE(Rpnn, addr(), min_step(), max_step(), dw_factor(), target_error_,
                   cost_func(), wbp_, epoch_, terminate_,
@@ -749,6 +764,7 @@ const std::vector<Norm>&target_normalization(void) const
                         gpm_{ XMACRO_FOR_EACH(GENPARAMS) };     // general parameters map
     #undef XMACRO
 
+    void                init_neurons_(void);
     void                compute_error_(size_t p);
     void                educate_(size_t p);
     bool                is_lm_detected_(double err);
@@ -772,6 +788,7 @@ const std::vector<Norm>&target_normalization(void) const
     rpnnBouncer *       wbp_{&wb_};
     fifoDeque<double>   error_trail_;                           // for detecting LM traps
     size_t              epoch_{0};
+    size_t              epochs_;
     bool                stop_on_nan_{true};
     bool                terminate_{false};
 
@@ -782,11 +799,6 @@ const std::vector<Norm>&target_normalization(void) const
 
  private:
 
-    Rpnn &              reset_lm_(void) {
-                         error_trail_.clear();                  // empty error_trail_ drives init,
-                         error_trail_.push_back(std::numeric_limits<double>::max());// non-empty
-                         return *this;
-                        }
     double              normalize_(double x, rpnnNeuron *n) {   // normalize receptr in its pattern
                          auto ni = ++neurons().begin();         // begin from 1st receptor
                          for(auto nsi = nis_.begin(); nsi != nis_.end(); ++nsi, ++ni)
@@ -996,8 +1008,9 @@ void rpnnNeuron::grow_synapses(size_t i)                        // extend synaps
 
 void rpnnNeuron::prune_synapses(size_t n) {
  // n - linked neuron n (not a synapse index!) in NN topology
+ auto & neuron = nn().neuron(n);
  for(auto si = synapses().begin(); si != synapses().end(); ++si)
-  if( &si->linked_neuron() == &nn().neuron(n) )
+  if(&si->linked_neuron() == &neuron)
    { synapses().erase(si); break; }
 }
 
@@ -1292,18 +1305,21 @@ void Rpnn::topology_check(void) {
 
 void Rpnn::converge(size_t epochs) {
  // converge either to solution (error < target) or end of epochs
+ epochs_ = epochs;                                              // could be used by user's bouncers
+
  if(error_trail_.empty()) {                                     // haven't been trained before
-  DBG(2) DOUT() << "dump before convergence: " << *this << std::endl;
   topology_check();
   bouncer().reset();
   bounce_weights();
   init_neurons_();
+  DBG(2) DOUT() << "dump before convergence: " << *this << std::endl;
  }
 
- if(not terminate_) epoch_ = 0;
  size_t patterns = (++neurons().begin())->input_pattern()->size();
+ if(not terminate_) epoch_ = 0;                                 // preserve epoch value
 
- while(not terminate_) {                                        // terminate_ is external signal
+ while(epoch_ < epochs) {
+  if(terminate_) break;                                         // terminate_ is external signal
   reset_errors();
 
   for(size_t p = 0; p < patterns; p++) {                        // cycle through all patterns
@@ -1317,9 +1333,8 @@ void Rpnn::converge(size_t epochs) {
   if(stop_on_nan() and isnan(global_err))
    throw EXP(Rpnn::stopped_on_nan_error);
 
-  if(not wbp_->finish_upon_lmd())                               // check for errors and epochs
-   if(global_err < target_error() or epoch_ >= epochs)          // only if not running in BLM mode
-    break;
+  if(global_err < target_error())
+   break;
 
   if(lm_detection() and is_lm_detected_(global_err)) {          // found local minimum?
    if(wbp_->finish_upon_lmd()) break;                           // in BLM it's end of run
@@ -1414,7 +1429,7 @@ bool Rpnn::is_lm_detected_(double err) {
                   << ", LMD_PTRN_: " << LMD_PTRN_
                   << ", error: " << global_error()
                   << " (target error: " << target_error() << ")" << std::endl;
-   reset_lm_();
+   reset_lm();
    return true;                                                 // indicate LM found
   }
   ++++hare;
@@ -1521,18 +1536,16 @@ void blmFinder::bounce(void) {
  std::vector<Rpnn> nnv(tm_.size(), nn());
  std::vector<rpnnBouncer> lmv(tm_.size());                       // bouncer per each nn in nnv
 
- size_t synapse_cnt = nnv.front().synapse_count();
  auto lmv_it = lmv.begin();
  for(auto &n: nnv) {
   lmv_it->finish_upon_lmd(true);                                // engage BLM modes
   n.bouncer(*lmv_it++);                                         // setup own bouncer for each nn
   n.bouncer().weight_updater(nn().bouncer().weight_updater());  // restore bouncer function
-  n.lm_detection(nn().lm_detection() == 0?                      // original rpnn might not have it
-                  synapse_cnt * 3: nn().lm_detection());        // so setup if it doesn't
+  n.lm_detection(nn().lm_detection());
   n.DBG().severity(NDBG);
  }
  DBG(1)
-  DOUT() << "lm_detection size for clones: " << nnv.front().lm_detection() << std::endl;
+  DOUT() << "lm_detection size for threads: " << nnv.front().lm_detection() << std::endl;
 
  find_blm(nnv);
  nn().terminate();                                              // don't converge original nn
@@ -1542,40 +1555,46 @@ void blmFinder::bounce(void) {
 
 void blmFinder::find_blm(nnv_type &nnv) {
  // run multiple threads searching for the deepest LM
- auto glambda = [&](Rpnn &n, auto&&... arg) {                    // helper lambda to start thread
+ auto glambda = [&](Rpnn &n, auto&&... arg) {                   // helper lambda to start thread
    try { return n.converge(std::forward<decltype(arg)>(arg)...); }
    catch(Rpnn::stdException & e) {
-    DBG(0) DOUT() << "exception by one of the threads, invalidating its errors"  << std::endl;
+    DBG(0) DOUT() << "exception by one of threads, restarting the thread"  << std::endl;
     for(auto &oe: n.output_errors())
      oe = std::numeric_limits<double>::max();
+    n.reset_lm();
    }
   };
 
- for(auto &n: nnv)
-  tm_.start_sync(glambda, std::ref(n), SIZE_T(-1));
+ for(auto &n: nnv)                                              // prepare a sync start
+  tm_.start_sync(glambda, std::ref(n), nn().epochs());
  tm_.start_sync();
 
  for(size_t seat = 0;
      not is_goal_reached_();
-     tm_.run_seat(seat, glambda, std::ref(nnv[seat].bounce_weights()), SIZE_T(-1))) {
+     tm_.run_seat(seat, glambda, std::ref(nnv[seat].bounce_weights()), nn().epochs())) {
+
   seat = tm_.await_seat();                                      // wait for any thread to finish
   auto & n = nnv[seat];
-  nn().epoch(nn().epoch() + n.epoch());
-  if(n.global_error() >= best_lm_err_) {                        // worse LM found
+  nn().epoch(nn().epoch() + n.epoch());                         // accumulate total epochs
+  double global_error = n.global_error();
+
+  if(global_error >= best_lm_err_) {                            // worse LM found
    auto check = goal_err_;
    goal_err_ += (best_lm_err_ - goal_err_) / reduce_factor();   // reducing goal error might render
    if(goal_err_ == check) break;                                // it out of double precision
+   DBG(1) DOUT() << "fruitless convergence, adjusting goal to: " << goal_err_ << std::endl;
    continue;
   }
 
   // better LM found
   preserve_weights_(n);
-  best_lm_err_ = n.global_error();
+  best_lm_err_ = global_error;
   goal_err_ = best_lm_err_ / reduce_factor();
-  DBG(2)
+  DBG(1)
    DOUT() << "better error found: " << best_lm_err_ << " (goal: " << goal_err_ << ")" << std::endl;
  }
 
+ DBG(0) DOUT() << "end of search reached, terminating all threads..." << std::endl;
  for(auto &n: nnv) n.terminate();                               // to all threads
  tm_.join();
 }
