@@ -1,7 +1,7 @@
 
 # `Rpnn`
 This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface; 
-no dependencies - fully contained implementation, no dependencies (STL only), no memory/resource leakages, no dead-lock.
+no dependencies - fully contained implementation, no dependencies (STL only), no memory/resource leakages, multithreaded, no dead-lock.
 
 ##### Enhancement requests and/or questions are more than welcome: *ldn.softdev@gmail.com*
 
