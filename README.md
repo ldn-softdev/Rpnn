@@ -15,7 +15,7 @@ a number of advantages over the standard backprop mechanism:
 - the configuration of the _rprop_ is simple and not as complex and sensitive as the standard backprop's
 - this implementation provides auto normalization of outputs and optionally of the inputs 
 ([why inputs may require normalization](https://github.com/ldn-softdev/Rpnn#default-parameters))
-- the framework is fully and easily SERDES'able [link TBU]
+- the framework is fully and easily [SERDES](https://github.com/ldn-softdev/Rpnn#serdes-interface)'able
 - the framework also support multi-class classification (support of _Softmax_ logistic at the output perceptron)
 - the framework features a detection mechanism of local minimum traps and bouncing its weights out of the trap - ensures a high probability of convergence
 - the framework provides a weight bouncer class capable of finding a better (deeper) minimum in absence of the global one
@@ -64,6 +64,8 @@ Given right configuration (topology, parameters) and enough resources (cpu cores
       * [Loading data patterns](https://github.com/ldn-softdev/Rpnn#loading-data-patterns)
       * [Other configuration methods](https://github.com/ldn-softdev/Rpnn#other-configuration-methods)
     * [Weight updater](https://github.com/ldn-softdev/Rpnn#weight-updater)
+    * [Post training activation](https://github.com/ldn-softdev/Rpnn#post-training-activation)
+    * [SERDES interface](https://github.com/ldn-softdev/Rpnn#serdes-interface)
 
 
 ## cli toy
@@ -1099,20 +1101,20 @@ output data always normalized, therefore they are always copied.
     Too short trail size won't be able to detect LM effectively, while too long will slow down convergence - thus, finding the right balance
     for a given type of problem solution migh require some research. Default trail size is `0` (i.e., LM trap detection is disabled)
     
-- _`Rpnn::stop_on_nan(bool)`_ - instructs NN to stop convergence if _`global_error()`_ (error calculated by cost function averaged by all output neurons)
+- _`Rpnn::stop_on_nan(bool)`_ - instructs NN to stop convergence if `global_error()` (error calculated by cost function averaged by all output neurons)
     turns `NaN`. That typically happens when certain configurations (combination of parameters) are incompatible. By default it's on.
     
 - _`Rpnn::cost_function(double (*)(double, double))`_ - allows plugging an error function (c-style), which accepts 2 _doubles_ and returns the error between them;
-    Class provides 2 cost functions: _`Sse`_ - _sum squared error_ and _`Xntropy`_ - _cross entropy_. Default is _`Sse`_, _`Xntropy`_ typically would be
+    Class provides 2 cost functions: `Sse` - _sum squared error_ and `Xntropy` - _cross entropy_. Default is `Sse`, `Xntropy` typically would be
     used with _Softmax_ activation at output neurons.
 
 - _`rpnnNeuron::transfer_func(double (*)(double, rpnnNeuron *))`_ - neuron's method which allows plugging a logistic function (c-style). The pluggable accepts
     two parameters:  
       - _`double`_ - implemented function's operand  
       - _`rpnnNeuron *`_ pointer to a calling neuron or _nullptr_ (_nullptr_ is only passed when the function is tested for its bounds)
-    By default each neuron is equipped with _`Sigmoid`_ transfer function.
+    By default each neuron is equipped with `Sigmoid` transfer function.
 
-- _`normalize(double min, double max)`_ - enables/disables inputs normalization. _`min`_ == _`max`_ disables normalization. Defaults are `{-1, +1}`
+- _`normalize(double min, double max)`_ - enables/disables inputs normalization. `min` == `max` disables normalization. Defaults are `{-1, +1}`
 
 - _`gpm(const std::string &param, double val)`_ - lets setting Rpnn's [generic parameters](https://github.com/ldn-softdev/Rpnn#generic-parameters); the
     counterparts _`gpm(void)`_ call allows reading the container with the default parameters (which is `std::map<std::string, double>`)
@@ -1126,8 +1128,8 @@ _Weight updater_ is designed as a class (rather than a method) to allow overridi
 twofold override of the default behavior:
 
 1. By creating and plugging a child class, which has ability to override following _virtual_ methods:
-    - _`reset(void)`_: this method is called by _`Rpnn:converge(..)`_ only once the NN is untrained
-    - _`bounce(void)`_: this method is called by _`Rpnn:converge(..)`_ right after _`reset()`_ and once _LM trap detection_ is engaged and LM trap is
+    - _`reset(void)`_: this method is called by `Rpnn:converge(..)` only once the NN is untrained
+    - _`bounce(void)`_: this method is called by `Rpnn:converge(..)` right after `reset()` and once _LM trap detection_ is engaged and LM trap is
     detected - i.e., the method is called each time when _NN's_ weights need to be bounced.  
     Here's a synopsis of such override:
     ```
@@ -1137,7 +1139,7 @@ twofold override of the default behavior:
       nn.bouncer(blm);			// plug the override
      // ...
     ```
-2. By plugging own _`std::function`_ callable target into the _`rpnnBouncer`_. Here's a synopsis of such example:
+2. By plugging own `std::function` callable target into the `rpnnBouncer`. Here's a synopsis of such example:
     ```
     Rpnn nn;
     uniformBouncer ub;			// functor facilitating own weight update policy
@@ -1147,6 +1149,64 @@ twofold override of the default behavior:
     // ...
     ```
 Both methods could be used together at the same time.
+
+
+#### Post training activation
+Once the _NN_ is trained to a desirable effect, then it becomes possible to activate it with the new (unseen) input data.
+This could be done in two ways:
+1. load the input patterns and then activate the NN pointing it to the pattern, e.g.:  
+    ```
+    std::vector<std::vector<std::string>>
+        input_ptrns = {{"A", "B"},{"B", "C"},{"D", "E"}};
+
+    nn.load_patterns(input_ptrns);
+    
+    std::cout << "activating input ptrn #1: " << nn.activate(1).out() << std::endl;
+    ```
+    \- in that example the (trained) NN was activated with the input pattern `{"B", "C"}`
+
+2. The input pattern can be passed directly to the `activate()` method:
+    ```
+    std::cout << "activating NN with pattern "D, E": " << nn.activate({"D", "E"}).out() << std::endl;
+    ```
+    \- in this example, the `activate()` method loads the pattern values directly into the respective receptors and
+    then activates the NN with the loaded data
+
+
+The access to the NN activation result(s) may occurs in a couple ways:
+1. using `Rpnn::out(size_t n = 0)` - this method, illustrated in the above examples, reads the activation result from the first
+    output neuron. In case there are multiple neurons the method accepts the index of the output neuron, e.g.: `nn.out(1);`
+
+2. neuron can be accessed first (via iterator, or using `Rpnn::neuron(size_t)` access method) and then the activation result
+    can be read using `rpnnNeuron::out()` method:
+    ```
+    std::cout "activation result of the fist output neuron: " << nn.output_neurons_itr()->out() << std::endl;
+    ```
+
+#### SERDES interface
+The Rpnn class is fully SERDES'able - it's easily _serializable_ into a _binary blob_ and _deserializable_ (from the blob) into
+the target Rpnn object.  
+Naturally, the serialization would be required when Rpnn is trained and ready to be dumped into the file (or SQL database):
+```
+    std::ofstream file("rpnn.bin", std::ios::binary);		//open a file in a binary mode
+ 
+    file << std::noskipws << Blob(nn);		// Blob class is part of the Rpnn header file
+```
+
+Reverse operation (i.e. restoration NN from the serialized blob) is equally easy:
+```
+    Blob b(std::istream_iterator<char>(std::ifstream{"oxa.bin", std::ios::binary}>>std::noskipws),
+           std::istream_iterator<char>{});	// read blob from the file
+
+    Rpnn nn(b);					// deserialize - restore NN state from the blob
+    // alternatively this could done sequentially:
+    //    Rpnn nn;
+    //    b.restore(nn);
+```
+
+##### Enhancement requests and/or questions are more than welcome: *ldn.softdev@gmail.com*
+
+
 
 
 
