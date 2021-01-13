@@ -1,5 +1,5 @@
 
-# `Rpnn` (under construction)
+# `Rpnn`
 This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface; 
 no dependencies - fully contained implementation.
 
@@ -1195,7 +1195,7 @@ Naturally, the serialization would be required when Rpnn is trained and ready to
 
 Reverse operation (i.e. restoration NN from the serialized blob) is equally easy:
 ```
-    Blob b(std::istream_iterator<char>(std::ifstream{"oxa.bin", std::ios::binary}>>std::noskipws),
+    Blob b(std::istream_iterator<char>(std::ifstream{"rpnn.bin", std::ios::binary}>>std::noskipws),
            std::istream_iterator<char>{});	// read blob from the file
 
     Rpnn nn(b);					// deserialize - restore NN state from the blob
