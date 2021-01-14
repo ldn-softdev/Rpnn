@@ -1185,7 +1185,7 @@ The access to the NN activation result(s) may occurs in a couple ways:
 
 #### SERDES interface
 The Rpnn class is fully SERDES'able - it's easily _serializable_ into a _binary blob_ and _deserializable_ (from the blob) into
-the target Rpnn object.  
+a target Rpnn object.  
 Naturally, the serialization would be required when Rpnn is trained and ready to be dumped into the file (or SQL database):
 ```
     std::ofstream file("rpnn.bin", std::ios::binary);		//open a file in a binary mode
@@ -1203,6 +1203,9 @@ Reverse operation (i.e. restoration NN from the serialized blob) is equally easy
     //    Rpnn nn;
     //    b.restore(nn);
 ```
+For a detailed description of the `Blob` class, refer to the header [Blob.hpp](https://github.com/ldn-softdev/Rpnn/blob/main/lib/Blob.hpp)  
+For further details of `Rpnn` class refer to the header [rpnn.hpp](https://github.com/ldn-softdev/Rpnn/blob/main/lib/rpnn.hpp)
+
 
 ##### Enhancement requests and/or questions are more than welcome: *ldn.softdev@gmail.com*
 
