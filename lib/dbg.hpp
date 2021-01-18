@@ -406,6 +406,7 @@ class Debug {
                 Trunc_front, \
                 Trunc_both
     ENUM(TosType, TOS_TYPE)
+    #undef TOS_TYPE
 
     struct Ctw {};                                              // used only as enablement for ctw
 
@@ -558,6 +559,7 @@ class Debug {
  private:
     #define MONTH Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec
     ENUMSTR( Month, MONTH )
+    #undef MONTH
 
     static short        udl_;                                   // user debug level - set by user
     static bool         indented_;                              // is prompt indented?
@@ -580,16 +582,11 @@ class Debug {
     static TosType      tos_;                                   // flag: truncate output stream
     static size_t       adj_;                                   // value for Trunc_both
 
-    static const std::string
-                        timestamp_(void);
-    static const std::string
-                        stamp_str_(time_t t_stamp);
-    static bool         match_(const char *f);
+    const std::string   timestamp_(void) const;
+    const std::string   stamp_str_(time_t t_stamp) const;
+    bool                match_(const char *f) const;
 };
 
-STRINGIFY( Debug::Month, MONTH)
-#undef MONTH
-#undef TOS_TYPE
 
 
 short                   Debug::udl_{0};                         // 0: debugs disabled
@@ -668,7 +665,7 @@ size_t Debug::term_width(bool forced) {
 
 
 
-const std::string Debug::timestamp_(void) {
+const std::string Debug::timestamp_(void) const {
  // build a time-stamp of the local TZ, possibly including ms and us
  std::stringstream so;
 
@@ -697,7 +694,7 @@ const std::string Debug::timestamp_(void) {
 
 
 
-const std::string Debug::stamp_str_(time_t t_stamp) {
+const std::string Debug::stamp_str_(time_t t_stamp) const {
  // build a date-time-stamp in the format: YYYY-MMM-DD hh:mm:ss
  std::stringstream so;
 
@@ -720,7 +717,7 @@ const std::string Debug::stamp_str_(time_t t_stamp) {
 
 
 
-bool Debug::match_(const char *fn) {
+bool Debug::match_(const char *fn) const {
  // filter-in or filter-out any matches setup in Debug::filter_
  // if Debug::filter is not set, always return true
  // match occurs from the beginning of the function's name only.

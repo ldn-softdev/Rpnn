@@ -47,12 +47,13 @@ class ThreadMaster {
                 Bug_unreachable_point, \
                 End_of_throw
     ENUMSTR(ThrowReason, THROWREASON)
+    #undef THROWREASON
 
     #define SEATSTATE \
                 Seat_vacant, \
                 Seat_taken
-
     ENUM(SeatState, SEATSTATE)
+    #undef SEATSTATE
 
                         ThreadMaster(size_t trds = 0) {         // DC
                          if(trds == 0)
@@ -146,10 +147,6 @@ std::condition_variable ssc_;                                   // start_sync's 
     void                availale_seats_(void);                  // debug output only
 
 };
-
-STRINGIFY(ThreadMaster::ThrowReason, THROWREASON)
-#undef THROWREASON
-#undef SEATSTATE
 
 
 

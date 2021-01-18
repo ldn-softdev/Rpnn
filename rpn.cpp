@@ -172,24 +172,24 @@ class Rpn: public Rpnn {
     // map of predefined cost functions
     map<const char*, void*>
                         cfm_ {
-        {ENUMS(Rpnn::costFunc, Rpnn::Sse), reinterpret_cast<void*>(Rpnn::cf_Sse)},
-        {ENUMS(Rpnn::costFunc, Rpnn::Xntropy), reinterpret_cast<void*>(Rpnn::cf_Xntropy)}
+        {STRENM(Rpnn::costFunc, Rpnn::Sse), reinterpret_cast<void*>(Rpnn::cf_Sse)},
+        {STRENM(Rpnn::costFunc, Rpnn::Xntropy), reinterpret_cast<void*>(Rpnn::cf_Xntropy)}
     };
 
     // map predefined logistic functions
     map<const char*, void*>
                         tfm_ {
-        {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Sigmoid),
+        {STRENM(rpnnNeuron::tFunc, rpnnNeuron::Sigmoid),
             reinterpret_cast<void*>(rpnnNeuron::tf_Sigmoid)},
-        {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Tanh),
+        {STRENM(rpnnNeuron::tFunc, rpnnNeuron::Tanh),
             reinterpret_cast<void*>(rpnnNeuron::tf_Tanh)},
-        {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Tanhfast),
+        {STRENM(rpnnNeuron::tFunc, rpnnNeuron::Tanhfast),
             reinterpret_cast<void*>(rpnnNeuron::tf_Tanhfast)},
-        {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Relu),
+        {STRENM(rpnnNeuron::tFunc, rpnnNeuron::Relu),
             reinterpret_cast<void*>(rpnnNeuron::tf_Relu)},
-        {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Softplus),
+        {STRENM(rpnnNeuron::tFunc, rpnnNeuron::Softplus),
             reinterpret_cast<void*>(rpnnNeuron::tf_Softplus)},
-        {ENUMS(rpnnNeuron::tFunc, rpnnNeuron::Softmax),
+        {STRENM(rpnnNeuron::tFunc, rpnnNeuron::Softmax),
             reinterpret_cast<void*>(rpnnNeuron::tf_Softmax)},
     };
 

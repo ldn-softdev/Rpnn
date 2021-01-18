@@ -299,6 +299,7 @@ class Blob {
                 unknown_pointer_while_serializing, \
                 unknown_reference_while_deserializing
     ENUMSTR(ThrowReason, THROWREASON)
+    #undef THROWREASON
 
 
                         Blob(void) = default;                   // DC
@@ -866,8 +867,9 @@ std::vector<const void*>cptr_;                                  // host cons-poi
                         }
 };
 
-STRINGIFY(Blob::ThrowReason, THROWREASON)
-#undef THROWREASON
+
+
+
 
 #undef KEY
 #undef STATUS

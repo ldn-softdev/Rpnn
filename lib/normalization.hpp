@@ -38,11 +38,13 @@ class Median: public std::vector<T> {
     #define THROWREASON \
                 Empty_data
     ENUMSTR(ThrowReason, THROWREASON)
+    #undef THROWREASON
 
     #define MMODE \
                 Clear_manually, \
                 Clear_on_read
     ENUMSTR(Mode, MMODE)
+    #undef MMODE
 
                         Median(void) = default;
                         Median(Mode x): m_{x} {}
@@ -63,7 +65,7 @@ class Median: public std::vector<T> {
     COUTABLE(Median, median_mode())
     // COUTABLE interfaces:
     const char *        median_mode(void) const
-                         { return ENUMS(Mode, m_); }
+                         { return STRENM(Mode, m_); }
 
     EXCEPTIONS(ThrowReason)
 
@@ -72,13 +74,6 @@ class Median: public std::vector<T> {
 
  private:
 };
-
-template<typename T>
-STRINGIFY(Median<T>::ThrowReason, THROWREASON)
-template<typename T>
-STRINGIFY(Median<T>::Mode, MMODE)
-#undef THROWREASON
-#undef MMODE
 
 
 
@@ -140,6 +135,7 @@ class MovingMedian: public fifoDeque<T> {
     #define THROWREASON \
                 Empty_data
     ENUMSTR(ThrowReason, THROWREASON)
+    #undef THROWREASON
 
                         MovingMedian(void) = default;
     explicit            MovingMedian(size_t s): fifoDouble(s) {}
@@ -161,10 +157,6 @@ class MovingMedian: public fifoDeque<T> {
 
     EXCEPTIONS(ThrowReason)
 };
-
-template<typename T>
-STRINGIFY(MovingMedian<T>::ThrowReason, THROWREASON)
-#undef THROWREASON
 
 
 
@@ -202,6 +194,7 @@ class Norm {
     #define THROWREASON \
                 Norm_range_negative
     ENUMSTR(ThrowReason, THROWREASON)
+    #undef THROWREASON
 
                         Norm(double b = -1.0, double r = 2.0):      // default norm: -1 .. +1
                          nb_(b), nr_(r)
@@ -241,9 +234,6 @@ class Norm {
     double              nb_;                                        // base to normalize to
     double              nr_;                                        // range to normalize to
 };
-
-STRINGIFY(Norm::ThrowReason, THROWREASON)
-#undef THROWREASON
 
 
 

@@ -248,7 +248,7 @@ class rpnnNeuron {
                 Relu, \
                 Softplus, \
                 Softmax
-    ENUMSTR(tFunc, RPNN_TFUNC)
+    ENUMSTC(tFunc, RPNN_TFUNC)
 
     // declare all static transfer functions: tf_Sigmoid, Tanh, etc
     #define XMACRO(X) static double tf_ ## X(double, rpnnNeuron*);
@@ -355,7 +355,7 @@ class rpnnNeuron {
                          for(ti = 0; ti < tf_vec_.size(); ++ti)
                           if(tf_vec_[ti] == tf_) break;
                          if(ti >= tf_vec_.size()) return "user's function";
-                         return ENUMS(tFunc, ti);
+                         return STRENM(tFunc, ti);
                         }
     const vDouble *     inputs_ptr(void) const
                          { return is_; }
@@ -505,11 +505,12 @@ class Rpnn {
                 blm_bad_thread_count, \
                 inconsistent_synapse_map
     ENUMSTR(ThrowReason, THROWREASON)
+    #undef THROWREASON
 
     #define RPNN_COSTFUNC \
                 Sse, \
                 Xntropy
-    ENUMSTR(costFunc, RPNN_COSTFUNC)
+    ENUMSTC(costFunc, RPNN_COSTFUNC)
 
     // declare all static const functions
     #define XMACRO(X) static double cf_ ## X(double, double);
@@ -740,7 +741,7 @@ lNeuron::const_iterator output_neurons_itr(void) const
                          for(ci = 0; ci < cf_vec_.size(); ++ci)
                           if(cf_vec_[ci] == cf_) break;
                          if(ci >= cf_vec_.size()) return "user's function";
-                         return ENUMS(costFunc, ci);
+                         return STRENM(costFunc, ci);
                         }
 const std::vector<Norm>&input_normalization(void) const
                          { return nis_; }
@@ -826,9 +827,7 @@ const std::vector<Norm>&target_normalization(void) const
     static vvDouble     dummy_ts_;                              // dummy (default) target_set
 };
 
-STRINGIFY(Rpnn::ThrowReason, THROWREASON)
 STRINGIFY(Rpnn::costFunc, RPNN_COSTFUNC)
-#undef THROWREASON
 #undef RPNN_COSTFUNC
 
 Rpnn::vvDouble Rpnn::dummy_ts_;                                 // dummy (default) target_set
