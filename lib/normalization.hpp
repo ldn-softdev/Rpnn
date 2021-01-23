@@ -83,9 +83,7 @@ double Median<T>::median(double nth) {
  if(std::vector<T>::empty())
   throw EXP(Median::Empty_data);
 
- auto dummy = [&] { return true; };
- auto clear_on_exit = [&](bool) { if(mode() == Clear_on_read) std::vector<T>::clear(); };
- GUARD(dummy, clear_on_exit)
+ GUARD(true, [&](bool){ if(mode() == Clear_on_read) std::vector<T>::clear(); })
 
  if(std::vector<T>::size() & 0x1) {                             // if size() is odd.
   if(std::vector<T>::size() == 1)
@@ -112,9 +110,7 @@ double Median<T>::median(double nth) {
 template<typename T>
 double Median<T>::average(void) {
  // calculate median
- auto dummy = [&] { return true; };
- auto clear_on_exit = [&](bool) { if(mode() == Clear_on_read) std::vector<T>::clear(); };
- GUARD(dummy, clear_on_exit)
+ GUARD(true, [&](bool) { if(mode() == Clear_on_read) std::vector<T>::clear(); })
 
  double sum = 0;
  sum = std::accumulate(std::vector<T>::begin(), std::vector<T>::end(), sum);

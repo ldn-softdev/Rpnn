@@ -57,6 +57,7 @@
 #include <type_traits>
 #include <mutex>
 #include <tuple>
+#include <functional>
 #include "macrolib.hpp"
 
 
@@ -97,25 +98,30 @@
 
 /*
  * A trivial wrapper around std::exception
- * - to be used with enum stringification in classes (ENUMSTR, STRINGIFY)
+ * - to be used with enum stringification in classes (ENUMSTR, ENUMSTC)
+ * - extends exception with following calls:
+ *      func(): returns c-string of the function name (where exception occurred)
+ *      file(): returns c-string of the file name holding the code where exceptions occurred
+ *      line(): returns line number where exception occurs
+ *      code(): returns integer of the exception (vs what() which returns c-string)
+ *      where(): a combination of file(), func(), line() calls
  *
  * Synopsis:
- * // 1. define ENUMSTR within the class, enumerating exception reasons
+ * // 1. define ENUMSTR (or ENUMSTC) within the class, enumerating exception reasons
  *
  *      class myClass {
  *       public:
  *        ...
- *          define THROWREASON
+ *          #define THROWREASON
  *              InvalidInput, \
  *              IncorrectUsage, \
  *              WrongType
  *          ENUMSTR(ThrowReason, THROWREASON)
+ *          #undef THROWREASON
  *
  *          ...
  *          EXCEPTION(ThrowReason)
  *      };
- *      STRINGIFY(myClass::ThrowReason, THROWREASON)
- *      #undef THROWREASON
  *
  *
  * // 2. use in throwing defined exception reasons, e.g.:
@@ -135,6 +141,11 @@
  *       std::cout << "exception in: " << e.where() << std::endl;
  *      }
  *
+ * Note: If exceptions code are meant to be used from a foreign class, e.g.:
+ *       EXP(AnotherClass::ThrowReason::InvalidInput);
+ *       then, in that class ThrowReason has to be declared using ENUMSTC, STRINGIFY and with
+ *       public visibility, because this class needs to have an access to the stringified enum
+ *       values
  */
 
 
@@ -205,43 +216,43 @@
  */
 
 template<class T>
-bool operator==(const T &__a__, std::vector<T> __v__) {
+bool operator==(const T &__a__, std::initializer_list<T> && __v__) {
  for(auto &x: __v__)
   if(x == __a__) return true;
  return false;
 }
 
-bool operator==(const std::string &__a__, std::vector<const char *> __b__) {
+bool operator==(const std::string &__a__, std::initializer_list<const char *> && __b__) {
  for(auto x: __b__)
   if(__a__ == x) return true;
  return false;
 }
 
 #define AMONG(FIRST, REST...) \
-    == std::vector<decltype(FIRST)>{FIRST, MACRO_TO_ARGS(__COMMA_SEPARATED__, REST)}
+    == std::initializer_list<decltype(FIRST)>{FIRST, MACRO_TO_ARGS(__COMMA_SEPARATED__, REST)}
 
 
 
 
 
 /*
- * GUARD is a polymorphic macro allowing preserving and automatically reinstating the
+ * GUARD is a polymorphic macro allowing stashing and automatically reinstating the
  * value of the preserved object accessed either by a reference, or via getters/setters
  *
- * 1. following GUARD interface provides a guard functionality for an arbitrary objects
- * accessible by reference: it will preserve the object value upon interface declaration
+ * 1. the following GUARD notation provides a guard functionality for an arbitrary object
+ * accessible by reference: it will stash the object value upon interface declaration
  * and will restore the object value upon exiting the scope (GUARD's destruction);
  *
  * Synopsis:
- *
- *      double x = 3.14;
- *      cout << "x: "  << x << endl;
+ *      SomeClass x(3.14);                  // assuming SomeClass support copy/move constructors
+ *      cout << "x: "  << x.get() << endl;
  *      {
- *       GUARD(x)
- *       x = 2.71;
- *       cout << "x: "  << x << endl;
- *      }
- *      cout << "x: "  << x << endl;
+ *       GUARD(x)                           // x will be COPIED upon stashing here
+ *       // GUARD(std::move(x))             // alternatively: x will be MOVED upon stashing here
+ *       x.set(2.71);
+ *       cout << "x: "  << x.get() << endl;
+ *      }                                   // x will be reinstated here via MOVE
+ *      cout << "x: "  << x.get() << endl;
  *
  * Output:
  *      x: 3.14
@@ -250,24 +261,33 @@ bool operator==(const std::string &__a__, std::vector<const char *> __b__) {
  *
  *
  * 2. Sometimes classes cater only getter and setter methods to access
- * their objects. For such case, this GUARD interface provides a solution:
+ * their elements. For such case, this GUARD notation provides a solution:
  *
  *      class MyX {
  *       public:
- *          int                 get(void) const { return x_; }
+ *          SomeClass &         get(void) { return x_; }
+ *          const SomeClass &   get(void) const { return x_; }
  *          void                set(int x) { x_ = x; }
+ *          // alternative setter form:
+ *          //  void                set(const int & x) { x_ = std::move(x); }
  *       private:
- *          int              x_;
+ *          SomeClass           x_;
  *      };
  *
  *      MyX x;
  *      x.set(123);
  *      cout << "x: "  << x.get() << endl;
  *      {
- *       GUARD(x.get, x.set)    // spell here object's getter and setter, alternatively
- *       x.set(-1);             // it could be collapsed: into GUARD(x.get, x.set, -1)
+ *       GUARD(x.get(), x.set)              // object will be COPIED upon stashing
+ *       // GUARD(std::move(x.get()), x.set)// alternatively: object will be MOVED upon stashing
+ *       x.set(-1);
+ *       // if GUARD(x.get(), x.set, -1) were used, then the object would get MOVED here upon
+ *       // stashing (not copied) - no point to copy object if it gets immediately rewritten,
+ *       // thus specifying `std::move(x.get())` would be redundant
  *       cout << "x: "  << x.get() << endl;
- *      }
+ *      }                                   // object will reinstated via MOVE (2 moves expected)
+ *                                          // if alternative setter form was used, then object
+ *                                          // would get reinstated via COPY (one copy expected)
  *      cout << "x: "  << x.get() << endl;
  *
  * Output:
@@ -285,51 +305,70 @@ bool operator==(const std::string &__a__, std::vector<const char *> __b__) {
  */
 
 
-// There are 3 forms of GUARD: for a {single object}, form {getter, setter}
-// and form {getter, setter, value}
+// There are 3 forms of GUARD: for a {single object}, form {object, setter}
+// and form {object, setter, new_value}
 // Forms demultiplexing occurs in __GUARD_CHOOSER__ macro, which results into
-// expanding __GUARD_1_ARG__ for the former case and into __GUARD_2_ARG__ for
-// the latter
+// expanding __GUARD_1_ARG__ for the former case and into __GUARD_2_ARG__ or
+// __GUARD_3_ARG__
 //
 // __GUARD_1_ARG__: declares a trivial class __Guard_X__, which stores object's
 // value and its pointer. Restoration of the object's value occurs upon __GUARD_X__'s
 // destruction
+//   o In this form, the argument is either moved or copied upon stashing when passed by
+//     r-value or somehow else respectively.
+//   o When restored, it's always moved
 //
-// __GUARD_2_ARG__: declares a child class of __Guard_X__, where it only captures
-// the value of the object through its getter (in the constructor of the child class
-// xptr_ is getting nullified so that when destroyed the restoration at parent is skipped)
-// Restoration of the object is designed through capturing object's setter via lambda
-// and calling the lambda (i.e. object's setter effectively) with preserved value
-// in the destructor of the child class
+// __GUARD_2_ARG__:
+//  - the first argument is the reference to the object itself (via getter call)
+//      o in case of `l-value` reference, the object will be stashed via MOVE operation
+//      o in case of `const l-value` reference, the object will be stashed via COPY
+//      o in case of `r-value` reference, the object will be stashed via MOVE
+//  - the second argument is the spelled setter call (e.g.: `x.set`) - the setter's call
+//    is captured vial lambda calling the spelled setter upon the object restoration
+//    (class destruction)
+//      o if setter accepts its argument by `const l-value` reference then the restoration will
+//        occur via COPY operation (which is not advisable for a setter)
+//      o if setter accepts its argument by value, then copy-elision will ensure that
+//        the value to setter will be passed via MOVE
 //
-// __GUARD_3_ARG__: just same as __GUARD_2_ARG__, just sets 3rd parameter (value)
-// immediately via setter
+// __GUARD_3_ARG__: just same as __GUARD_2_ARG__, just sets 3rd parameter (value) immediately
+// via setter; 1st argument though is attempted to be MOVED (if getter permits)
 //
 // Each form of GUARD is appended __LINE__ macro to ensure uniqueness of declarations
 // allowing  multiple invocations of the macro dodging name clashing
 
-#define __STITCH_2TKNS__(X,Y) X ## Y
-#define STITCH_2TKNS(X,Y) __STITCH_2TKNS__(X, Y)
+#define __STITCH_2TKNS__(X, Y) X ## Y
+#define STITCH_2TKNS(X, Y) __STITCH_2TKNS__(X, Y)
 
-
+// GUARD(X): where X is a reference to the guarded object
 #define __GUARD_1_ARG__(X) \
     __Guard_X__<decltype(X)> STITCH_2TKNS(__my_Guard_X__, __LINE__)(X);
+
+
+// GUARD(Y,Y): where X specifies a value/reference of the guarded object,
+//             while Y only spells setter's call, e.g.: GUARD(obj.getter(), obj.setter)
 #define __GUARD_2_ARG__(X, Y) \
-    struct STITCH_2TKNS(__Guard_GS__, __LINE__): public __Guard_X__<decltype(X())> { \
-        /* __Guard_X__ constructor capturing by value from getter(), and setter via lambda */\
-        STITCH_2TKNS(__Guard_GS__, __LINE__)(decltype(X()) __Guard_X_arg__, \
-                                             std::function<void(decltype(X()))> __Guard_X_l__): \
-         __Guard_X__<decltype(X())>(__Guard_X_arg__), /* capture getter's value in base class */\
-         lambda{__Guard_X_l__} /* capture lambda, passed in the initializer list */\
-          { __Guard_X__<decltype(X())>::xptr_ = nullptr; } /* ensure destructor disengaged */\
+    class STITCH_2TKNS(__Guard_GS__, __LINE__) { \
+        typedef typename std::remove_const<std::remove_reference<decltype(X)>::type>::type Xtype; \
+        Xtype x_; \
+        std::function<void (Xtype &)> setter; \
+     public: \
+        /* constructor __Guard_X__ capturing by value (from getter()), and setter via lambda */ \
+        STITCH_2TKNS(__Guard_GS__, __LINE__)(decltype(X) __Guard_X1__, \
+                                             std::function<void(Xtype &)> &&__Guard_X2__): \
+         x_(std::forward<decltype(X)>(__Guard_X1__)), \
+         setter{std::move(__Guard_X2__)} {} /* capture lambda calling user setter */ \
+        /* __Guard_X__ destructor calling the captured setter (target) */ \
        ~STITCH_2TKNS(__Guard_GS__, __LINE__)(void) \
-         { lambda(__Guard_X__<decltype(X())>::x_); }; /* reinstate via setter captured in lambda*/\
-        std::function<void (decltype(X()))> lambda; \
+         { setter(x_); }; /* reinstate via setter captured in lambda*/ \
     } STITCH_2TKNS(__my_Guard_GS__, __LINE__) \
-        { X(), [&](decltype(X()) __Guard_X_arg__) { Y(__Guard_X_arg__); } };
+        { X, [&](typename std::remove_const<std::remove_reference<decltype(X)>::type>::type & \
+                          __Guard_ARG__) { Y(std::move(__Guard_ARG__)); } };
+
 #define __GUARD_3_ARG__(X, Y, V) \
-    __GUARD_2_ARG__(X, Y) \
+    __GUARD_2_ARG__(std::move(X), Y) \
     Y(V);
+
 #define __GUARD_4TH_ARG__(ARG1, ARG2, ARG3, ARG4,...) ARG4
 #define __GUARD_CHOOSER__(ARGS...) \
     __GUARD_4TH_ARG__(ARGS, __GUARD_3_ARG__, __GUARD_2_ARG__, __GUARD_1_ARG__)
@@ -338,13 +377,19 @@ bool operator==(const std::string &__a__, std::vector<const char *> __b__) {
 
 
 
+
 template <typename T>
 class __Guard_X__ {
- // Guard class itself
+ // Guard class - standalone usage
  public:
                         __Guard_X__(void) = delete;
+                        // Do not try optimizing below two constructors into a single one with
+                        // a copy elision (i.e., GUARD(typename <..> __Guard_X_arg__)) - that
+                        // won't work because of the xptr_ - need to take address of the argument
+                        // GUARD(x):
                         __Guard_X__(typename std::remove_reference<T>::type & __Guard_X_arg__):
                          x_{__Guard_X_arg__}, xptr_{&__Guard_X_arg__} {}
+                        // GUARD(std::move(x)):
                         __Guard_X__(typename std::remove_reference<T>::type && __Guard_X_arg__):
                          x_{std::move(__Guard_X_arg__)}, xptr_{&__Guard_X_arg__} {}
                        ~__Guard_X__(void) { if(xptr_) *xptr_ = std::move(x_); }
@@ -444,7 +489,7 @@ class __Guard_X__ {
  * Sometimes, the code refactoring is required from within the loop, then it's required to
  * return flow control code like continue / break / return and none
  * - that simple enum defines those in Fc__:
- * Fc__::Continue / Fc__::Continue / Fc__::Return / Fc__::None
+ * Fc__::Break / Fc__::Continue / Fc__::Return / Fc__::None
  *
  * CBR polymorphic macro handles the return Fc__ codes and the return values as this:
  *
