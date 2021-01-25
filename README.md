@@ -580,9 +580,9 @@ Topology for the `rpn` can be given using `-t` option followed by the perceptron
 following topology is required:
 
         input1 -> (R)---(H)
-                     \ / \
-                      X   (O) -> output
-                     / \ /
+                     \ /   \
+                      X     (O) -> output
+                     / \   /
         input2 -> (R)---(H)
 
 That topology is made of 3 layers:
