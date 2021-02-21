@@ -967,6 +967,8 @@ here's an example how to to create and train `Rpnn` for _XOR_, _OR_, and _AND_ p
       .target_error(0.00001)			// in this example it's optional
       .converge(10000);				// find solution
 
+    std::cout << "epochs took to converge: " << nn.epoch() << std::endl; 
+
     // Offload NN brains into the file
     std::ofstream file("oxa.bin", std::ios::binary);	// open file
     file << std::noskipws << Blob(nn);		// dump (serialize) NN to file
@@ -988,8 +990,9 @@ Now the counterpart - reading a (trained) Rpnn brains from the file and activati
 
 Possible output:
 ```
-1 AND 0 = 4.21456e-23
-1 XOR 1 = 0.00370288
+epochs took to converge: 26
+1 AND 0 = 1.62056e-06
+1 XOR 1 = 1.19259e-05
 0 OR 1 = 1
 ```
 
