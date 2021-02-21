@@ -1,4 +1,5 @@
 
+
 # `Rpnn`
 This is an idiomatic C++ implementation of _Resilient backprop Neural Network_ with an easy and convenient user interface; 
 no dependencies - fully contained implementation (STL only), no memory/resource leakages, multithreaded, no dead-locks.
@@ -518,7 +519,7 @@ the logistic for a receptor is irrelevant, as receptors only facilitate input (p
  - `Tanhfast` - could be used in hidden and output neurons
  - `Relu` - could be used only in hidden neurons
  - `Softplus` - could be used only in hidden neurons
- - `Softmax` - сould be used in output neurons only.
+ - `Softmax` - could be used in output neurons only.
 
 All the neuron's logistic function could be setup using `-l` followed the name of the function  
 Output neuron's only logistics could be setup using `-o` option followed the name of the function
@@ -659,7 +660,8 @@ However, the signal mapping semantic here won't be like as one would expect. In 
 1, 0 = 1
 0, 1 = 1
 ```
-I.e., in the 1st input channel `high`,`low` tokens correspond respectively to `0`,`1` signals; th 2nd input channel do `low`,`high`to `0`,`1` respectively.
+I.e., in the 1st input channel `high`,`low` tokens correspond respectively to `0`,`1` signals;
+in the 2nd input channel do `low`,`high` to `0`,`1` respectively.
 the output channel's `high`,`low` tokens correspond respectively to `0`,`1`. 
 It can be observed when showing real converged numbers instead of tokens:
 ```
@@ -875,7 +877,7 @@ bash $ <car.data wc -l
 bash $ 
 ```
 
-Thus, training data preparation (_**which is generally the most crusial part of a successful NN training**_) here also could be trivial. Description provide
+Thus, training data preparation (_**which is generally the most crucial part of a successful NN training**_) here also could be trivial. Description provide
 following class distribution:
 ```
    class      N          N[%]
@@ -976,7 +978,7 @@ Now the counterpart - reading a (trained) Rpnn brains from the file and activati
            std::istream_iterator<char>{});	// read serialized NN from file into blob
 
     Rpnn nn(b);					// Create Rpnn obj & de-serialize blob into NN
-    // the two above declarations coudl be combined into one: Rpnn nn(Blob(...));
+    // the two above declarations could be combined into one: Rpnn nn(Blob(...));
 
     // activate varous channels
     std::cout << "1 AND 0 = " << nn.activate({1, 0}).out(2) << std::endl; 
@@ -1215,8 +1217,5 @@ For further details of `Rpnn` class refer to the header [rpnn.hpp](https://githu
 
 
 ##### Enhancement requests and/or questions are more than welcome: *ldn.softdev@gmail.com*
-
-
-
 
 
