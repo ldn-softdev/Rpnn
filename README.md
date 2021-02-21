@@ -984,6 +984,13 @@ Now the counterpart - reading a (trained) Rpnn brains from the file and activati
     std::cout << "0 OR 1 = "  << nn.activate({0, 1}).out()  << std::endl;
 ```
 
+Possible output:
+```
+1 AND 0 = 4.21456e-23
+1 XOR 1 = 0.00370288
+0 OR 1 = 1
+```
+
 #### Topology methods:
 
 ```
