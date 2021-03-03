@@ -38,6 +38,11 @@
  *
  * Output if myClass was definined with COUTABLE macro:
  * uc: myClass.. i:123, s:"3.14", vi[0]:1, vi[1]:23
+ *
+ *
+ * When std::string is being output there's following an in-band control:
+ *  - if front char of the string is a back_space ('\b') then outer quotes are dropped,
+ *    however the backspace itself is not printed
  */
 
 #pragma once
@@ -61,6 +66,7 @@
 #define __COUTABLE_TRM__ "; "
 #define __COUTABLE_TRL__ ".. "
 #define __OUTABLE_TRL__ "'..."
+#define __OUTABLE_CTR__ '\b'                                    // in-band control to drop quotes
 
 constexpr int size_of_coutable_sfx(void) { return sizeof(__COUTABLE_SFX__) - 1; }
 
@@ -243,12 +249,16 @@ __cout_arg__(std::ostream & os, const char *var_name, const T & var) {
 // 2a. basic string output: out-able format
 void __out_arg__(std::ostream & os, int ind, const char *class_name,
                  const char *var_name, const std::basic_string<char> &var) {
- os << std::endl << __OUTABLE_IND__(ind) << class_name << "::" << var_name << ": \"" << var << '"';
+ const char *v = &var[ var.empty() or var.front() != __OUTABLE_CTR__? 0: 1 ];
+ std::string q = var.empty() or var.front() != __OUTABLE_CTR__? "\"": "";
+ os << std::endl << __OUTABLE_IND__(ind) << class_name << "::" << var_name << ": " << q << v << q;
 }
 
 // cout-able format
 void __cout_arg__(std::ostream & os, const char *var_name, const std::basic_string<char> &var) {
- os << (var_name? std::string(var_name) + ":\"": "\"") << var << "\"" << __COUTABLE_SFX__;
+ const char *v = &var[ var.empty() or var.front() != __OUTABLE_CTR__? 0: 1 ];
+ std::string q = var.empty() or var.front() != __OUTABLE_CTR__? "\"": "";
+ os << (var_name? std::string(var_name) + ":": "") << q << v << q << __COUTABLE_SFX__;
 }
 
 

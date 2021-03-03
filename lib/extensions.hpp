@@ -26,6 +26,9 @@
  *     - ENUMSTR in addition stringifies enums into: const char* trafficLightColors_str[] array
  *     - ENUMSTC only declares static const char* trafficLightColors_str[] array, so that later
  *               it could be initialized via STRINGIFY macro.
+ *     - ENUMOPT macro should follow either of above ENUMs - it defines a new OPT_`enum` with
+ *               entries whose values set to respective bits (order of 2)
+ *
  *     ENUMSTC and STRINGIFY must be used in pair, when there's a need to define the array
  *     with stringified enums as **static**
  *
@@ -42,9 +45,9 @@
  *
  *          std::cout << "All traffic-light colors:";
  *          for(int i = 0; i < COUNT_ARGS(MY_COLORS); ++i)
- *           cout << " "" << SomeClass::trafficLightColors_str[i];
- *           // or equally: cout << ' ' << STRENM(trafficLightColors, i);
- *          cout << endl;
+ *           std::cout << " "" << SomeClass::trafficLightColors_str[i];
+ *           // or equally: std::cout << ' ' << STRENM(trafficLightColors, i);
+ *          std::cout << std::endl;
  *
  * Obvious caveat: enums declared that way do not allow value re-definition
  * However, consider enum value redefinition a bad programming practice.
@@ -82,6 +85,13 @@
 #define ENUMSTC(ENUM_CLASS, ENDEF...) \
     enum ENUM_CLASS { MACRO_TO_ARGS(__COMMA_SEPARATED__, ENDEF) }; \
     static const char * ENUM_CLASS ## _str[];
+
+
+// defines enum-like bit-flags, must be used only after ENUMs are defined
+#define __OPT_SEPARATED__(X) Opt_ ## X = 1ul << X,
+#define ENUMOPT(ENUM_CLASS, ENDEF...) \
+    enum OPT_ ## ENUM_CLASS \
+     { MACRO_TO_ARGS(__OPT_SEPARATED__, ENDEF) };
 
 
 // stringification for ENUMSTC
@@ -324,8 +334,8 @@ bool operator==(const std::string &__a__, std::initializer_list<const char *> &&
 //      o in case of `const l-value` reference, the object will be stashed via COPY
 //      o in case of `r-value` reference, the object will be stashed via MOVE
 //  - the second argument is the spelled setter call (e.g.: `x.set`) - the setter's call
-//    is captured vial lambda calling the spelled setter upon the object restoration
-//    (class destruction)
+//    is captured via lambda calling the spelled setter upon the object restoration
+//    (class instance destruction)
 //      o if setter accepts its argument by `const l-value` reference then the restoration will
 //        occur via COPY operation (which is not advisable for a setter)
 //      o if setter accepts its argument by value, then copy-elision will ensure that
@@ -349,7 +359,8 @@ bool operator==(const std::string &__a__, std::initializer_list<const char *> &&
 //             while Y only spells setter's call, e.g.: GUARD(obj.getter(), obj.setter)
 #define __GUARD_2_ARG__(X, Y) \
     class STITCH_2TKNS(__Guard_GS__, __LINE__) { \
-        typedef typename std::remove_const<std::remove_reference<decltype(X)>::type>::type Xtype; \
+        using Xtype [[maybe_unused]] = \
+                std::remove_const<std::remove_reference<decltype(X)>::type>::type; \
         Xtype x_; \
         std::function<void (Xtype &)> setter; \
      public: \
@@ -497,7 +508,7 @@ class __Guard_X__ {
  *  CBR(user_func(..))              // user_func() returns only Fc__, thus
  *                                  // Fc__::Return returns void
  * or,
- *  CBR(user_func(..))              // user_func() returns tuple<Fc__, ret_val_type>
+ *  CBR(user_func(..))              // user_func() returns std::tuple<Fc__, ret_val_type>
  *                                  // Fc__::Return returns second value of tuple
  * or,
  *  CBR(user_func(..), ret_val)     // user_func() returns only Fc__, and

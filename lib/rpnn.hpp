@@ -183,6 +183,7 @@ class rpnnSynapse {
                          { return *nnp_; }
 
     SERDES(rpnnSynapse, w_, dw_, g_, pg_, nnp_, lpn_)
+
     COUTABLE(rpnnSynapse, host_nn_ptr(), linked_neuron_ptr(),
                           weight(), delta_weight(), gradient(), prior_gradient())
     // Below definitions are for OUTABLE interface only
@@ -457,7 +458,9 @@ class rpnnBouncer {
                          { b_ = wb; return *this; }
 
     SERDES(rpnnBouncer, nnp_, range_, base_, ful_, seed_)
+
     OUTABLE(rpnnBouncer, &nn(), base(), range())
+
     DEBUGGABLE()
 
  protected:
@@ -839,7 +842,7 @@ Rpnn::vvDouble Rpnn::dummy_ts_;                                 // dummy (defaul
 // SERDES user interfaces in rpnnNeuron
 //
 void rpnnNeuron::serdes_is_(Blob &b) const {
- // serialize is_ only if internal input_patter linked to the neuron
+ // serialize is_ only if internal input_pattern linked to the neuron
  if(nnp_ == nullptr or nn().input_patterns().empty())
   { b.append_cntr(false); return; }
 
@@ -1504,23 +1507,20 @@ class blmFinder: public rpnnBouncer {
     void                bounce(void);
     void                find_blm(nnv_type &);
 
-    SERDES(blmFinder, best_lm_err_, goal_err_, rf_, &blmFinder::serdes_parent_)
+    SERDES(blmFinder, best_lm_err_, goal_err_, rf_, &blmFinder::serdes_tm_, rb_)
 
  private:
-    void                serdes_parent_(Blob &b) const {                 // serializer
-                         b.append_cntr(tm_.size());
-                         b.append(static_cast<const rpnnBouncer &>(*this));
-                        }
-    void                serdes_parent_(Blob &b) {                       // de-serializer
-                         auto t = b.restore_cntr();
-                         tm_.resize(t);
-                         b.restore(static_cast<rpnnBouncer&>(*this));
-                        }
+    void                serdes_tm_(Blob &b) const                   // serializer
+                         { b.append_cntr(tm_.size()); }
+    void                serdes_tm_(Blob &b)                         // de-serializer
+                         { tm_.resize(b.restore_cntr()); }
 
     bool                is_goal_reached_(void);
     void                preserve_weights_(const Rpnn &);
 
     ThreadMaster        tm_;
+    rpnnBouncer &       rb_{*this};                             // helper to SERDES base class
+
     double              best_lm_err_{std::numeric_limits<double>::max()};
     double              goal_err_{0};
     double              rf_{RPNN_BLM_RDCE};                     // reduce factor

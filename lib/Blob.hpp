@@ -109,8 +109,8 @@
  *       though pointers to individual chars within std::string are not accounted
  *    2. pointers handled by the user's pointer-providers - in this case user provides the way
  *       to [re]store pointers, SERDES only will call provider method in due time
- *    3. Functions (as pointers) and their containers (i.e., variables holding function pointers):
- *       functions only getting listed, while pointer containers will be SERDES'ed
+ *    3. Functions (as pointers): functions only getting listed, while pointer to functions will
+ *       be SERDES'ed
  *
  *  - 1. internal pointers:
  *       when SERDES serializes data, it also memorizes all the addresses of the serialized data,
@@ -150,8 +150,21 @@
  *                methods in pointer-providers - these methods do nothing but pure SERDES'ing,
  *                while regular append/restore also have some overhead for handling pointers
  *
- *  - 3. functions/function pointers:
- *       ...tbu
+ *  - 3. functions/function pointers - handled the same way is pointers:
+ *
+ *       void hello_world(void) { std::cout << "hello world" << std::endl; }
+ *        ...
+ *       typedef void(*)(void) = func;
+ *       func f{hello_world};
+ *       Blob b(hello_world, f);     // to be able to serialize `f`, Blob must be aware of function
+ *        ...
+ *       func g{nullptr};
+ *       b.restore(hello_world, g);
+ *
+ *      Or, expressed in SERDES interface:
+ *
+ *       SERDES(myClass, hello_world, f)
+ *
  *
  * - Functional implementation of pointers serialization/deserialization:
  *   Serialization of all pointers occurs at the end of top-level SERDES process, i.e., past all
@@ -167,6 +180,33 @@
  *   from the Blob, however pointer's address is memorized in the vector, and at the end -
  *   all addresses are restored
  *
+ * - Sometimes it might be required to handle (deserialize) pointer(s) right in-place (instead of
+ *   relying on a SERDES mechanism) - typically, in custom user-provider methods, when
+ *   the restoration of the user/custom data depends on that pointer, e.g.:
+ *
+ *           SERDES(ResourceHandler, xptr_, &ResourceHandler::ptr_provider)
+ *           void            ptr_provider(Blob &b) const {      // for serialize (const qualifier)
+ *                            b.append_cntr( xptr_->idx() );
+ *                           }
+ *           void            ptr_provider(Blob &b) {            // de-serialize (restore) provider
+ *                            b.restore_cntr( xptr->get_ifx() );
+ *                           }
+ *
+ *   Such code would SEGFAULT, because when de-serializing ptr_provider() is called, xptr_ is
+ *   yet unresolved (all pointers resolution is delayed until the very end of SERDES operation)
+ *   Thus, `xptr_` then needs to be handled in-place, for such case Blob provides 2 methods:
+ *     o req_append(..)
+ *     o req_restore(..)
+ *   The above code snipped then becomes this:
+ *
+ *           SERDES(ResourceHandler, &ResourceHandler::ptr_provider)
+ *           void            ptr_provider(Blob &b) const {      // for serialize (const qualifier)
+ *                            b.req_append(xptr_);              // request immediate storage
+ *                           }
+ *           void            ptr_provider(Blob &b) {            // de-serialize (restore) provider
+ *                            b.req_restore(&xptr_);            // request immediate restore
+ *                            mydata = xptr->get_data();
+ *                           }
  *
  * IMPORTANT: SERDES interface requires host class to have a default constructor
  *            (or one with a default argument), thus if none is declared, force
@@ -264,6 +304,8 @@
           __blob__.deserialize_ptrs(); \
         }
 
+
+
 #define ITR first                                               // semantic for emplacment pair
 #define STATUS second                                           // instead of first/second
 #define KEY first                                               // semantic for map's pair
@@ -291,7 +333,7 @@ class Blob {
 
  public:
 
-    using ptr_pair = std::pair<void*, const void*>;
+    using ptr_constptr = std::pair<void*, const void*>;
 
     #define THROWREASON \
                 inconsistent_data_while_appending, \
@@ -329,7 +371,7 @@ class Blob {
                          par_.clear(); par_.emplace(nullptr, 0);
                          prv_.clear();
                          rru_.clear(); rru_.emplace(nullptr);
-                         rrp_.clear(); rrp_.emplace(0, ptr_pair{nullptr, nullptr});
+                         rrp_.clear(); rrp_.emplace(0, ptr_constptr{nullptr, nullptr});
                          apv_.clear();
                          return *this;
                         }
@@ -707,8 +749,18 @@ class Blob {
                             std::is_function<std::remove_pointer_t<T>>::value, void>::type
                         append(T &ptr) {
                          // do not act upon facing a pointer, instead store it in prv_ and
-                         // process all of them (form prv_) at the end of SERDES (serialization)
+                         // process all of them (from prv_) at the end of SERDES (serialization)
                          prv_.push_back(ptr);
+                        }
+    void                req_append(const void *ptr) {
+                         // explicit call for an immediate (vs delayed) pointer serialization:
+                         // this call is to be used in custom pointer-provider calls and only
+                         // required as a counter-part for a respective req_restore(..), which
+                         // sometimes require immediate pointer resolution (as vs delayed)
+                         auto it = par_.find(ptr);
+                         if(it == par_.end())
+                          throw EXP(unknown_pointer_while_serializing);
+                         append_cntr(it->VALUE);
                         }
 
     template<typename T>
@@ -726,7 +778,27 @@ class Blob {
                          // process all of them (form prv_) at the end of SERDES (deserialization)
                          apv_.emplace_back(nullptr, reinterpret_cast<const void**>(&ptr));
                         }
-
+    template<typename T>
+    typename std::enable_if<not std::is_function<std::remove_pointer_t<T>>::value, void>::type
+                        req_restore(T **aptr) {
+                         // explicit call for immediate (vs delayed) pointer restore
+                         size_t pref = restore_cntr();          // pref: preserved ptr reference
+                         auto it = rrp_.find(pref);
+                         if(it == rrp_.end())
+                          throw EXP(unknown_reference_while_deserializing);
+                         *aptr = it->VALUE.first;
+                        }
+    template<typename T>
+    typename std::enable_if<not std::is_function<std::remove_pointer_t<T>>::value, void>::type
+                        req_restore(const T **aptr) {
+                         // explicit call for immediate (vs delayed) pointer restore
+                         size_t pref = restore_cntr();          // pref: preserved ptr reference
+                         auto it = rrp_.find(pref);
+                         if(it == rrp_.end())
+                          throw EXP(unknown_reference_while_deserializing);
+                         *aptr = static_cast<const T*>(it->VALUE.second?
+                                                        it->VALUE.second: it->VALUE.first);
+                        }
 
     // 4b. function pointers
     // 4b.1 bare function pointer (e.g.: func): preserve address only
@@ -741,7 +813,7 @@ class Blob {
                         restore(T &ptr)
                          { restore_addr(reinterpret_cast<void*>(ptr)); }
 
-    // 4b.2 function pointer storage (e.g.: fuct_ptr)
+    // 4b.2 function pointer storage (e.g.: func_ptr)
     template<typename T>
     typename std::enable_if<std::is_pointer<T>::value and
                             std::is_function<std::remove_pointer_t<T>>::value, void>::type
@@ -780,7 +852,7 @@ class Blob {
                          if(rru_.emplace(ptr).STATUS == false)  // it's already known address
                           return;
                          size_t newref = rru_.size() - 1;       // new reference
-                         rrp_.emplace(newref, ptr_pair{ptr, nullptr});  // register new reference
+                         rrp_.emplace(newref, ptr_constptr{ptr, nullptr});
                         }
 
     void                restore_addr(const void *ptr) {
@@ -788,7 +860,7 @@ class Blob {
                          if(rru_.emplace(ptr).STATUS == false)  // already known address
                           return;
                          size_t newref = rru_.size() - 1;       // register new reference
-                         rrp_.emplace(newref, ptr_pair{nullptr, ptr});
+                         rrp_.emplace(newref, ptr_constptr{nullptr, ptr});
                         }
 
 
@@ -799,7 +871,7 @@ class Blob {
    std::vector<uint8_t> blob_;
 
  private:
-std::vector<const void*>cptr_;                                  // host cons-pointers for append
+std::vector<const void*>cptr_;                                  // host const-pointers for append
     std::vector<void*>  vptr_;                                  // host pointers for restore
     // host pointers are used to call user callbacks when processing SERDES arguments
     // they are used as stack: upon each SERDES call (serialize(..)/deserialize(..))
@@ -817,7 +889,7 @@ std::vector<const void*>cptr_;                                  // host cons-poi
 
   std::set<const void*> rru_{nullptr};                          // restore ref. of unique pointers
     // rru_ keeps track of all unique pointers entering while in restoring phase
-    std::map<size_t, ptr_pair>
+    std::map<size_t, ptr_constptr>
                         rrp_{{0, {nullptr, nullptr}}};          // restore reference pointer
     // rrp_ holds mappings for all references to pointers (addresses and const-addresses) faced
     // so far within a blob being restored - reverse meaning of par_

@@ -535,7 +535,7 @@ Rpn & Rpn::run(void) {
 
   // output activation result(s)
   string dlm("");
-  for(size_t ons = output_neurons_count(), i = 0l; i < ons; ++i) {
+  for(size_t onc = output_neurons_count(), i = 0l; i < onc; ++i) {
    cout <<  dlm << cnv_[i + ip](out(i));
    dlm = " ";
   }
